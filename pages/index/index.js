@@ -26,6 +26,7 @@ Page({
       .where({
         isrecommend: true
       })
+      .orderBy('sort', 'asc')
       .get({
         success: (res) => {
           const products = res.data.map((item) => {
@@ -47,17 +48,29 @@ Page({
     let minPrice = 0
     let maxPrice = 0
     if (skuList.length > 0) {
-      const prices = skuList.map(sku => sku.prices)
-      minPrice = Math.min(...prices)
-      maxPrice = Math.max(...prices)
+      const prices = skuList.map((sku) => Number(sku.prices)).filter(Number.isFinite)
+      if (prices.length > 0) {
+        minPrice = Math.min(...prices)
+        maxPrice = Math.max(...prices)
+      }
     }
 
     // 计算总库存
-    const totalStock = skuList.reduce((sum, sku) => sum + (sku.stock || 0), 0)
+    const totalStock = skuList.reduce((sum, sku) => {
+      const stock = Number(sku.stock)
+      return sum + (Number.isFinite(stock) ? stock : 0)
+    }, 0)
 
-    // SKU数量 - 从specs.levels中获取规格数量
-    const levels = product.specs?.levels || []
-    const skuCount = levels.length > 0 ? levels[0].values.length : skuList.length
+    // 多级规格的实际可售组合以 SKU 列表为准
+    const skuCount = skuList.length
+    const minPriceSkus = skuList.filter((sku) => Number(sku.prices) === minPrice)
+    const units = [...new Set(skuList.map((sku) => sku.unit).filter(Boolean))]
+    const remarks = [...new Set(skuList.map((sku) => sku.priceRemark).filter(Boolean))]
+    const priceMeta = {
+      startsAt: minPriceSkus.some((sku) => sku.priceType === 'starting'),
+      unit: units.length === 1 && skuList.every((sku) => sku.unit === units[0]) ? units[0] : '',
+      remark: remarks.length === 1 && skuList.every((sku) => sku.priceRemark === remarks[0]) ? remarks[0] : ''
+    }
 
     return {
       ...product,
@@ -66,7 +79,8 @@ Page({
         max: maxPrice
       },
       totalStock: totalStock,
-      skuCount: skuCount
+      skuCount: skuCount,
+      priceMeta: priceMeta
     }
   }
 })

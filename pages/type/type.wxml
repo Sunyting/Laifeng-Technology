@@ -19,7 +19,10 @@
             <view class="product-price">
               <text class="price-symbol">¥</text>
               <text class="price-min">{{item.priceRange.min}}</text>
-              <text wx:if="{{item.priceRange.min !== item.priceRange.max}}" class="price-range">-{{item.priceRange.max}}</text>
+              <text wx:if="{{!item.priceMeta.startsAt && item.priceRange.min !== item.priceRange.max}}" class="price-range">-{{item.priceRange.max}}</text>
+              <text wx:if="{{item.priceMeta.startsAt}}" class="price-unit">起</text>
+              <text wx:if="{{item.priceMeta.unit}}" class="price-unit">/{{item.priceMeta.unit}}</text>
+              <text wx:if="{{item.priceMeta.remark}}" class="price-remark">{{item.priceMeta.remark}}</text>
             </view>
             <view class="product-sku-info">
               <text class="sku-count">{{item.skuCount}}种规格</text>

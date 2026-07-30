@@ -117,7 +117,9 @@
 .product-card-price {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   flex: 1;
+  min-width: 0;
 }
 
 .price-symbol {
@@ -136,6 +138,17 @@
 .price-range {
   font-size: 28rpx;
   color: #ff4d4f;
+}
+
+.price-unit {
+  font-size: 22rpx;
+  color: #ff4d4f;
+}
+
+.price-remark {
+  margin-left: 6rpx;
+  font-size: 20rpx;
+  color: #666666;
 }
 
 .add-cart-btn {

@@ -100,9 +100,11 @@
   flex-direction: column;
   gap: 12rpx;
 }
-s .product-price {
+.product-price {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .price-symbol {
@@ -121,6 +123,17 @@ s .product-price {
   font-size: 28rpx;
   color: #ff4444;
   font-weight: 600;
+}
+
+.price-unit {
+  font-size: 22rpx;
+  color: #ff4444;
+}
+
+.price-remark {
+  margin-left: 6rpx;
+  font-size: 20rpx;
+  color: #666666;
 }
 
 .product-sku-info {
