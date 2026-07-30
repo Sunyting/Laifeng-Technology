@@ -1,0 +1,46 @@
+.selector__level + .selector__level {
+  margin-top: 28rpx;
+}
+
+.selector__label {
+  color: #344054;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.selector__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.selector__option {
+  min-width: 116rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0 22rpx;
+  border: 1rpx solid #d0d5dd;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #344054;
+  font-size: 24rpx;
+  line-height: 62rpx;
+}
+
+.selector__option::after {
+  border: 0;
+}
+
+.selector__option--selected {
+  border-color: #e53e3e;
+  background: #fff5f5;
+  color: #c53030;
+  font-weight: 600;
+}
+
+.selector__option[disabled] {
+  border-color: #eaecf0;
+  background: #f9fafb;
+  color: #c0c5ce;
+}

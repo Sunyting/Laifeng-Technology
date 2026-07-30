@@ -1,0 +1,51 @@
+.price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
+  color: #e53e3e;
+}
+
+.price__symbol {
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.price__value {
+  margin: 0 4rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+}
+
+.price__range {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.price__suffix {
+  font-size: 22rpx;
+}
+
+.price__remark {
+  margin-left: 8rpx;
+  font-size: 20rpx;
+  color: #667085;
+}
+
+.price--small .price__symbol,
+.price--small .price__range {
+  font-size: 22rpx;
+}
+
+.price--small .price__value {
+  font-size: 30rpx;
+}
+
+.price--large .price__symbol,
+.price--large .price__range {
+  font-size: 30rpx;
+}
+
+.price--large .price__value {
+  font-size: 48rpx;
+}

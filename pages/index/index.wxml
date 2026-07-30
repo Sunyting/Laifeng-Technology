@@ -1,17 +1,15 @@
-<view class="search-container">
-  <view class="search-box">
+<view class="search-container" bindtap="openSearch">
+  <view class="search-box" aria-label="搜索商品">
     <image class="search-icon" src="../../images/icons/搜索.png"></image>
-    <text class="search-placeholder">120W 氮化镓充电器套装 火热销售中</text>
+    <text class="search-placeholder">搜索商品与服务</text>
   </view>
 </view>
 
-<view class="swiper-container">
+<view wx:if="{{banners.length}}" class="swiper-container">
   <swiper autoplay indicator-dots circular>
-    <block wx:for="{{banners}}" wx:key="{{index}}">
-      <swiper-item>
-        <image src="{{item.pic}}" mode="aspectFill"></image>
-      </swiper-item>
-    </block>
+    <swiper-item wx:for="{{banners}}" wx:key="_id">
+      <image src="{{item.pic}}" mode="aspectFill"></image>
+    </swiper-item>
   </swiper>
 </view>
 
@@ -19,32 +17,21 @@
   <view class="section-header">
     <text class="section-title">推荐商品</text>
   </view>
-  <view class="recommended-list">
-    <block wx:for="{{recommendedProducts}}" wx:key="{{item._id}}">
-      <view class="product-card">
-        <image class="product-image" src="{{item.image}}" mode="aspectFill"></image>
-        <view class="product-card-info">
-          <text class="product-card-name">{{item.name}}</text>
-          <view class="product-card-bottom">
-            <view class="product-card-price">
-              <text class="price-symbol">¥</text>
-              <text class="price-min">{{item.priceRange.min}}</text>
-              <text wx:if="{{!item.priceMeta.startsAt && item.priceRange.min !== item.priceRange.max}}" class="price-range">-{{item.priceRange.max}}</text>
-              <text wx:if="{{item.priceMeta.startsAt}}" class="price-unit">起</text>
-              <text wx:if="{{item.priceMeta.unit}}" class="price-unit">/{{item.priceMeta.unit}}</text>
-              <text wx:if="{{item.priceMeta.remark}}" class="price-remark">{{item.priceMeta.remark}}</text>
-            </view>
-            <view class="add-cart-btn" catchtap="addToCart" data-id="{{item._id}}" data-item="{{item}}">
-              <image class="cart-icon" src="../../images/icons/购物车.png"></image>
-            </view>
-          </view>
-          <!-- 可选：显示SKU数量和库存 -->
-          <view class="product-tags" wx:if="{{item.skuCount || item.totalStock}}">
-            <text wx:if="{{item.skuCount}}" class="tag">{{item.skuCount}}种规格</text>
-            <text wx:if="{{item.totalStock}}" class="tag">库存{{item.totalStock}}件</text>
-          </view>
-        </view>
-      </view>
-    </block>
+  <view wx:if="{{productsStatus === 'success'}}" class="recommended-list">
+    <product-card
+      wx:for="{{recommendedProducts}}"
+      wx:key="_id"
+      product="{{item}}"
+      layout="grid"
+      bind:cardtap="openProduct"
+      bind:addcart="chooseProduct"
+    ></product-card>
   </view>
+  <status-view
+    wx:else
+    status="{{productsStatus}}"
+    message="{{productsMessage}}"
+    action-text="{{productsStatus === 'error' ? '重试' : ''}}"
+    bind:action="loadPage"
+  ></status-view>
 </view>

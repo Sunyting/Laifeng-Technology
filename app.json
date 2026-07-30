@@ -1,5 +1,12 @@
 {
-  "pages": ["pages/index/index", "pages/type/type", "pages/cart/cart", "pages/home/home"],
+  "pages": [
+    "pages/index/index",
+    "pages/type/type",
+    "pages/cart/cart",
+    "pages/home/home",
+    "pages/search/search",
+    "pages/product-detail/product-detail"
+  ],
   "window": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "来锋科技",

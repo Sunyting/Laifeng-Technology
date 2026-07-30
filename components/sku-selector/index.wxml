@@ -1,0 +1,18 @@
+<view class="selector">
+  <view wx:for="{{displayLevels}}" wx:for-item="level" wx:key="name" class="selector__level">
+    <text class="selector__label">{{level.name}}</text>
+    <view class="selector__options">
+      <button
+        wx:for="{{level.values}}"
+        wx:for-item="option"
+        wx:key="value"
+        class="selector__option {{option.selected ? 'selector__option--selected' : ''}}"
+        disabled="{{option.disabled}}"
+        data-level="{{level.name}}"
+        data-value="{{option.value}}"
+        data-disabled="{{option.disabled}}"
+        bindtap="handleSelect"
+      >{{option.value}}</button>
+    </view>
+  </view>
+</view>

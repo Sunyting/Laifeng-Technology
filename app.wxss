@@ -1,4 +1,15 @@
-/**app.wxss**/
+page {
+  min-height: 100%;
+  background: #f5f7fa;
+  color: #101828;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
 .container {
   height: 100%;
   display: flex;

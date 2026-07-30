@@ -1,4 +1,7 @@
 {
+  "enablePullDownRefresh": true,
   "usingComponents": {
+    "product-card": "/components/product-card/index",
+    "status-view": "/components/status-view/index"
   }
 }

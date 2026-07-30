@@ -1,7 +1,8 @@
 {
-  "navigationBarTitleText": "购物车",
+  "navigationBarTitleText": "商品详情",
   "usingComponents": {
     "price-view": "/components/price-view/index",
+    "sku-selector": "/components/sku-selector/index",
     "status-view": "/components/status-view/index"
   }
 }

@@ -1,3 +1,60 @@
-<view class="container">
-  <text>购物车页面</text>
+<view class="cart-page">
+  <block wx:if="{{items.length}}">
+    <view class="cart-list">
+      <view wx:for="{{items}}" wx:key="key" class="cart-item">
+        <button
+          class="select-button {{item.selected ? 'select-button--active' : ''}}"
+          data-key="{{item.key}}"
+          bindtap="toggleItem"
+          aria-label="{{item.selected ? '取消选择' : '选择'}}{{item.name}}"
+        >{{item.selected ? '✓' : ''}}</button>
+
+        <view class="cart-media" data-id="{{item.productId}}" bindtap="openProduct">
+          <image wx:if="{{item.image}}" class="cart-image" src="{{item.image}}" mode="aspectFill"></image>
+          <view wx:else class="cart-placeholder">
+            <text>{{item.name}}</text>
+            <text class="cart-placeholder__status">图片待补</text>
+          </view>
+        </view>
+
+        <view class="cart-content">
+          <view data-id="{{item.productId}}" bindtap="openProduct">
+            <text class="cart-name">{{item.name}}</text>
+            <text wx:if="{{item.specText}}" class="cart-spec">{{item.specText}}</text>
+          </view>
+          <price-view sku="{{item.displaySku}}" size="small"></price-view>
+          <view class="cart-actions">
+            <view class="stepper">
+              <button class="stepper__button" disabled="{{item.quantity <= 1}}" data-key="{{item.key}}" bindtap="decreaseQuantity" aria-label="减少数量">−</button>
+              <text class="stepper__value">{{item.quantity}}</text>
+              <button class="stepper__button" disabled="{{item.quantity >= item.stock || item.quantity >= 99}}" data-key="{{item.key}}" bindtap="increaseQuantity" aria-label="增加数量">＋</button>
+            </view>
+            <button class="remove-button" data-key="{{item.key}}" bindtap="removeItem">删除</button>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-placeholder"></view>
+    <view class="cart-footer">
+      <button class="select-all" bindtap="toggleAll">
+        <text class="select-button {{allSelected ? 'select-button--active' : ''}}">{{allSelected ? '✓' : ''}}</text>
+        <text>全选</text>
+      </button>
+      <view class="total">
+        <text class="total__label">合计</text>
+        <text class="total__symbol">¥</text>
+        <text class="total__value">{{totalPrice}}</text>
+      </view>
+      <button class="checkout-button" disabled="{{!selectedCount}}" bindtap="checkout">结算({{selectedCount}})</button>
+    </view>
+  </block>
+
+  <status-view
+    wx:else
+    status="empty"
+    message="购物车还是空的"
+    action-text="去逛逛"
+    bind:action="goShopping"
+  ></status-view>
 </view>
