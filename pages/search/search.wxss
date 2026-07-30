@@ -18,7 +18,7 @@
 
 .search-box {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   align-items: center;
   min-width: 0;
   height: 72rpx;
@@ -39,10 +39,12 @@
 .search-input {
   flex: 1;
   min-width: 0;
+  height: 100%;
   font-size: 27rpx;
 }
 
 .clear-button {
+  flex: 0 0 48rpx;
   width: 48rpx;
   height: 48rpx;
   min-height: 48rpx;
@@ -61,7 +63,7 @@
 }
 
 .search-button {
-  flex: 0 0 auto;
+  flex: 0 0 80rpx;
   min-height: 72rpx;
   margin: 0;
   padding: 0 8rpx;
