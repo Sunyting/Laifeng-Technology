@@ -1,0 +1,33 @@
+<view class="category-container">
+  <!-- 左侧一级分类 -->
+  <view class="first-category">
+    <block wx:for="{{firstTypes}}" wx:key="{{item._id}}">
+      <view class="first-item {{currentFirstType === item._id ? 'active' : ''}}" bindtap="switchFirstType" data-id="{{item._id}}">
+        <text>{{item.name}}</text>
+      </view>
+    </block>
+  </view>
+
+  <!-- 右侧商品列表 -->
+  <view class="product-list">
+    <block wx:for="{{products}}" wx:key="{{item._id}}">
+      <view class="product-item">
+        <image src="{{item.image}}" mode="aspectFill"></image>
+        <view class="product-info">
+          <text class="product-name">{{item.name}}</text>
+          <view class="product-bottom">
+            <view class="product-price">
+              <text class="price-symbol">¥</text>
+              <text class="price-min">{{item.priceRange.min}}</text>
+              <text wx:if="{{item.priceRange.min !== item.priceRange.max}}" class="price-range">-{{item.priceRange.max}}</text>
+            </view>
+            <view class="product-sku-info">
+              <text class="sku-count">{{item.skuCount}}种规格</text>
+              <text class="total-stock">库存{{item.totalStock}}件</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+</view>
