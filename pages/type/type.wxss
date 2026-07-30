@@ -43,6 +43,7 @@ page {
 
 .product-list {
   flex: 1;
+  min-width: 0;
   height: 100%;
 }
 
