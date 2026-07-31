@@ -1,4 +1,5 @@
 const { callOrderService, MERCHANT_PHONE } = require('../../utils/order')
+const { saveUserSession } = require('../../utils/auth')
 
 const EMPTY_PROFILE = {
   nickName: '',
@@ -20,34 +21,45 @@ Page({
       paid: 0,
       pending: 0
     },
+    isLoggedIn: false,
     isLoading: true,
     isSaving: false,
     editorType: ''
   },
   onShow() {
-    this.loadPageData()
+    this.loadPageData().then(() => {
+      const app = getApp()
+      if (!app.globalData.openProfileEditor) return
+      app.globalData.openProfileEditor = false
+      this.openProfileEditor()
+    })
   },
   onPullDownRefresh() {
     this.loadPageData().finally(() => wx.stopPullDownRefresh())
   },
   loadPageData() {
     this.setData({ isLoading: true })
-    return Promise.all([
-      callOrderService('getProfile'),
-      callOrderService('listOrders')
-    ]).then(([profileData, orders]) => {
+    return callOrderService('getProfile').then((profileData) => {
       const profile = { ...EMPTY_PROFILE, ...(profileData || {}) }
-      const orderList = Array.isArray(orders) ? orders : []
+      const session = saveUserSession(profile)
       this.setData({
         profile,
+        isLoggedIn: session.loggedIn,
         avatarPreview: profile.avatarUrl,
         avatarText: (profile.nickName || profile.name || '顾').slice(0, 1),
+        orderCounts: { all: 0, unpaid: 0, paid: 0, pending: 0 }
+      })
+      if (!session.loggedIn) return
+      return callOrderService('listOrders').then((orders) => {
+        const orderList = Array.isArray(orders) ? orders : []
+        this.setData({
         orderCounts: {
           all: orderList.length,
           unpaid: orderList.filter((order) => order.paymentStatus !== 'paid').length,
           paid: orderList.filter((order) => order.paymentStatus === 'paid').length,
           pending: orderList.filter((order) => order.status === 'pending_confirmation').length
         }
+        })
       })
     }).catch((err) => {
       console.error('个人中心加载失败:', err)
@@ -57,11 +69,12 @@ Page({
     })
   },
   openOrders(e) {
+    if (!this.data.isLoggedIn) {
+      this.openProfileEditor()
+      return
+    }
     const filter = e.currentTarget.dataset.filter || 'all'
     wx.navigateTo({ url: `/pages/orders/orders?filter=${filter}` })
-  },
-  openCart() {
-    wx.switchTab({ url: '/pages/cart/cart' })
   },
   callMerchant() {
     wx.makePhoneCall({ phoneNumber: MERCHANT_PHONE })
@@ -74,6 +87,11 @@ Page({
     })
   },
   openAddressEditor() {
+    if (!this.data.isLoggedIn) {
+      wx.showToast({ title: '请先完善微信资料', icon: 'none' })
+      this.openProfileEditor()
+      return
+    }
     this.setData({
       editorType: 'address',
       profileDraft: { ...this.data.profile }
@@ -118,6 +136,10 @@ Page({
       wx.showToast({ title: '请填写昵称', icon: 'none' })
       return
     }
+    if (this.data.editorType === 'profile' && !this.data.avatarPreview) {
+      wx.showToast({ title: '请选择微信头像', icon: 'none' })
+      return
+    }
     if (this.data.editorType === 'address') {
       if (draft.name.length < 2) {
         wx.showToast({ title: '请填写联系人姓名', icon: 'none' })
@@ -143,13 +165,18 @@ Page({
         profile: { ...draft, avatarUrl }
       }))
       .then((profile) => {
+        const session = saveUserSession(profile)
         this.setData({
           profile,
+          isLoggedIn: session.loggedIn,
           profileDraft: profile,
           avatarPreview: profile.avatarUrl,
           avatarText: (profile.nickName || profile.name || '顾').slice(0, 1),
           editorType: ''
         })
+        return this.loadPageData()
+      })
+      .then(() => {
         wx.showToast({ title: '已保存', icon: 'success' })
       })
       .catch((err) => {

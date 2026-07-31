@@ -13,24 +13,27 @@
 .order-filters__inner {
   display: inline-flex;
   min-width: 100%;
-  gap: 12rpx;
 }
 
 .order-filter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 132rpx;
   height: 68rpx;
-  margin: 0;
+  margin-right: 12rpx;
   padding: 0 24rpx;
   border: 1rpx solid #d0d5dd;
   border-radius: 6rpx;
   background: #ffffff;
   color: #475467;
   font-size: 24rpx;
-  line-height: 66rpx;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.order-filter::after {
-  border: 0;
+.order-filter:last-child {
+  margin-right: 0;
 }
 
 .order-filter--active {

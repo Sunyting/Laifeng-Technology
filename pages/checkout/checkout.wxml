@@ -74,5 +74,11 @@
     </view>
   </block>
 
-  <status-view wx:else status="{{pageStatus}}" message="{{pageMessage}}" action-text="{{pageStatus === 'empty' ? '去逛逛' : (pageStatus === 'error' ? '重新加载' : '')}}" bind:action="handleStatusAction"></status-view>
+  <status-view
+    wx:else
+    status="{{pageStatus === 'loginRequired' ? 'empty' : pageStatus}}"
+    message="{{pageMessage}}"
+    action-text="{{pageStatus === 'loginRequired' ? '去登录' : (pageStatus === 'empty' ? '去逛逛' : (pageStatus === 'error' ? '重新加载' : ''))}}"
+    bind:action="handleStatusAction"
+  ></status-view>
 </view>

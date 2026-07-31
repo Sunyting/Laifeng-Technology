@@ -1,38 +1,39 @@
 <view class="profile-page">
   <view class="profile-hero">
-    <button class="profile-avatar-button" bindtap="openProfileEditor" aria-label="完善微信资料">
+    <view class="profile-avatar-button" bindtap="openProfileEditor" aria-label="完善微信资料">
       <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill"></image>
       <view wx:else class="profile-avatar profile-avatar--placeholder">{{avatarText}}</view>
-    </button>
+    </view>
     <view class="profile-identity">
       <text class="profile-name">{{profile.nickName || '微信资料未完善'}}</text>
       <text class="profile-description">{{profile.nickName ? '欢迎回来，您的服务记录都在这里' : '点击头像完善头像和昵称'}}</text>
     </view>
-    <button class="profile-edit" bindtap="openProfileEditor">{{profile.nickName ? '编辑' : '完善'}}</button>
+    <view class="profile-edit" bindtap="openProfileEditor">{{profile.nickName ? '编辑' : '完善'}}</view>
   </view>
 
+  <block wx:if="{{isLoggedIn}}">
   <view class="section order-section">
     <view class="section-heading">
       <text class="section-title">我的订单</text>
-      <button class="section-link" data-filter="all" bindtap="openOrders">查看全部 ></button>
+      <view class="section-link" data-filter="all" bindtap="openOrders">查看全部 ></view>
     </view>
     <view class="order-summary">
-      <button class="order-summary__item" data-filter="all" bindtap="openOrders">
+      <view class="order-summary__item" data-filter="all" bindtap="openOrders">
         <text class="order-summary__count">{{orderCounts.all}}</text>
         <text class="order-summary__label">全部订单</text>
-      </button>
-      <button class="order-summary__item" data-filter="unpaid" bindtap="openOrders">
+      </view>
+      <view class="order-summary__item" data-filter="unpaid" bindtap="openOrders">
         <text class="order-summary__count order-summary__count--warm">{{orderCounts.unpaid}}</text>
         <text class="order-summary__label">待付款</text>
-      </button>
-      <button class="order-summary__item" data-filter="paid" bindtap="openOrders">
+      </view>
+      <view class="order-summary__item" data-filter="paid" bindtap="openOrders">
         <text class="order-summary__count order-summary__count--green">{{orderCounts.paid}}</text>
         <text class="order-summary__label">已付款</text>
-      </button>
-      <button class="order-summary__item" data-filter="pending_confirmation" bindtap="openOrders">
+      </view>
+      <view class="order-summary__item" data-filter="pending_confirmation" bindtap="openOrders">
         <text class="order-summary__count">{{orderCounts.pending}}</text>
         <text class="order-summary__label">待确认</text>
-      </button>
+      </view>
     </view>
   </view>
 
@@ -42,9 +43,9 @@
         <text class="section-title">默认上门地址</text>
         <text class="section-caption">预约维修时自动带入</text>
       </view>
-      <button class="section-link" bindtap="openAddressEditor">{{profile.address ? '修改' : '添加'}} ></button>
+      <view class="section-link" bindtap="openAddressEditor">{{profile.address ? '修改' : '添加'}} ></view>
     </view>
-    <button class="address-content" bindtap="openAddressEditor">
+    <view class="address-content" bindtap="openAddressEditor">
       <block wx:if="{{profile.address}}">
         <view class="address-contact">
           <text class="address-name">{{profile.name}}</text>
@@ -56,36 +57,31 @@
         <text class="address-empty__title">还没有默认地址</text>
         <text class="address-empty__description">添加后，预约上门服务会更方便</text>
       </view>
-    </button>
+    </view>
   </view>
+  </block>
 
   <view class="service-list">
-    <button class="service-row" bindtap="openCart">
-      <view>
-        <text class="service-row__title">购物车</text>
-        <text class="service-row__description">继续选择商品或维修服务</text>
-      </view>
-      <text class="service-row__arrow">></text>
-    </button>
     <button
       class="service-row"
+      style="width: 100%; margin: 0; padding: 20rpx 30rpx; box-sizing: border-box;"
       open-type="contact"
       session-from="source=personal_center"
       aria-label="联系在线客服"
     >
-      <view>
-        <text class="service-row__title">在线客服</text>
+      <view class="service-row__content">
+        <text class="service-row__title">联系师傅</text>
         <text class="service-row__description">在线咨询商品、维修和订单问题</text>
       </view>
       <text class="service-row__action">咨询</text>
     </button>
-    <button class="service-row" bindtap="callMerchant">
-      <view>
+    <view class="service-row" bindtap="callMerchant">
+      <view class="service-row__content">
         <text class="service-row__title">电话联系</text>
         <text class="service-row__description">13872533145</text>
       </view>
       <text class="service-row__action">拨打</text>
-    </button>
+    </view>
   </view>
 
   <view wx:if="{{isLoading}}" class="page-loading">正在加载...</view>
@@ -94,11 +90,11 @@
     <view class="editor-panel" catchtap="noop">
       <view class="editor-header">
         <text class="editor-title">{{editorType === 'profile' ? '完善微信资料' : '默认上门地址'}}</text>
-        <button class="editor-close" bindtap="closeEditor" aria-label="关闭">×</button>
+        <view class="editor-close" bindtap="closeEditor" aria-label="关闭">×</view>
       </view>
 
       <view wx:if="{{editorType === 'profile'}}" class="profile-form">
-        <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
+        <button class="avatar-picker" style="width: 100%; margin-left: 0; margin-right: 0;" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
           <image wx:if="{{avatarPreview}}" class="avatar-picker__image" src="{{avatarPreview}}" mode="aspectFill"></image>
           <view wx:else class="avatar-picker__image avatar-picker__placeholder">{{avatarText}}</view>
           <text class="avatar-picker__text">选择微信头像</text>
@@ -124,7 +120,9 @@
         </label>
       </view>
 
-      <button class="editor-save" loading="{{isSaving}}" disabled="{{isSaving}}" bindtap="saveProfile">保存</button>
+      <view class="editor-save {{isSaving ? 'editor-save--disabled' : ''}}" bindtap="saveProfile">
+        {{isSaving ? '保存中...' : '保存'}}
+      </view>
     </view>
   </view>
 </view>

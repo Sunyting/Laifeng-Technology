@@ -1,4 +1,5 @@
 const { getCartItems, removeCartItems } = require('../../utils/cart')
+const { loadUserSession, openLogin } = require('../../utils/auth')
 const { callOrderService, formatMoney, formatOrderItem, MERCHANT_PHONE } = require('../../utils/order')
 const { formatSpecText, toFiniteNumber } = require('../../utils/product')
 
@@ -90,6 +91,20 @@ Page({
       pageStatus: 'loading',
       pageMessage: ''
     })
+    loadUserSession(true)
+      .then((session) => {
+        if (!session.loggedIn) {
+          this.setData({ pageStatus: 'loginRequired', pageMessage: '请先登录后再结算' })
+          return
+        }
+        this.initializeCheckout()
+      })
+      .catch((err) => {
+        console.error('结算登录状态检查失败:', err)
+        this.setData({ pageStatus: 'error', pageMessage: '登录状态检查失败，请稍后重试' })
+      })
+  },
+  initializeCheckout() {
     const selectedItems = getCartItems().filter((item) => item.selected !== false)
     if (!selectedItems.length) {
       this.setData({ pageStatus: 'empty', pageMessage: '没有可结算的商品' })
@@ -298,6 +313,10 @@ Page({
     wx.switchTab({ url: '/pages/type/type' })
   },
   handleStatusAction() {
+    if (this.data.pageStatus === 'loginRequired') {
+      openLogin()
+      return
+    }
     if (this.data.pageStatus === 'empty') {
       this.goShopping()
       return

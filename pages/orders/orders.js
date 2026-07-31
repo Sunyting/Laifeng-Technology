@@ -1,4 +1,5 @@
 const { callOrderService, formatOrder } = require('../../utils/order')
+const { loadUserSession, openLogin } = require('../../utils/auth')
 
 Page({
   data: {
@@ -27,8 +28,21 @@ Page({
   },
   loadOrders() {
     this.setData({ pageStatus: 'loading', pageMessage: '' })
-    return callOrderService('listOrders')
+    return loadUserSession(true)
+      .then((session) => {
+        if (!session.loggedIn) {
+          this.setData({
+            allOrders: [],
+            orders: [],
+            pageStatus: 'loginRequired',
+            pageMessage: '登录后才能查看订单'
+          })
+          return null
+        }
+        return callOrderService('listOrders')
+      })
       .then((orders) => {
+        if (orders === null) return
         const formattedOrders = (orders || []).map(formatOrder)
         this.setData({ allOrders: formattedOrders })
         this.applyFilter()
@@ -66,6 +80,10 @@ Page({
     wx.switchTab({ url: '/pages/type/type' })
   },
   handleStatusAction() {
+    if (this.data.pageStatus === 'loginRequired') {
+      openLogin()
+      return
+    }
     if (this.data.pageStatus === 'empty') {
       if (this.data.allOrders.length) {
         this.setData({ selectedFilter: 'all' })

@@ -1,5 +1,5 @@
 <view class="cart-page">
-  <block wx:if="{{items.length}}">
+  <block wx:if="{{pageStatus === 'success'}}">
     <view class="cart-list">
       <view wx:for="{{items}}" wx:key="key" class="cart-item">
         <button
@@ -52,9 +52,9 @@
 
   <status-view
     wx:else
-    status="empty"
-    message="购物车还是空的"
-    action-text="去逛逛"
-    bind:action="goShopping"
+    status="{{pageStatus === 'loading' ? 'loading' : (pageStatus === 'error' ? 'error' : 'empty')}}"
+    message="{{pageMessage}}"
+    action-text="{{pageStatus === 'loginRequired' ? '去登录' : (pageStatus === 'error' ? '重新加载' : '去逛逛')}}"
+    bind:action="handleStatusAction"
   ></status-view>
 </view>

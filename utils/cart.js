@@ -1,14 +1,25 @@
 const { formatSpecText, toFiniteNumber } = require('./product')
 
-const CART_STORAGE_KEY = 'laifeng_cart_items'
+const { getUserSession } = require('./auth')
+
+const CART_STORAGE_KEY_PREFIX = 'laifeng_cart_items'
+
+const getCartStorageKey = () => {
+  const { userId, loggedIn } = getUserSession()
+  return loggedIn && userId ? `${CART_STORAGE_KEY_PREFIX}:${userId}` : ''
+}
 
 const getCartItems = () => {
-  const items = wx.getStorageSync(CART_STORAGE_KEY)
+  const storageKey = getCartStorageKey()
+  if (!storageKey) return []
+  const items = wx.getStorageSync(storageKey)
   return Array.isArray(items) ? items : []
 }
 
 const saveCartItems = (items) => {
-  wx.setStorageSync(CART_STORAGE_KEY, items)
+  const storageKey = getCartStorageKey()
+  if (!storageKey) return []
+  wx.setStorageSync(storageKey, items)
   return items
 }
 
@@ -70,7 +81,7 @@ const addCartItem = (product, sku, quantity = 1) => {
 }
 
 module.exports = {
-  CART_STORAGE_KEY,
+  CART_STORAGE_KEY_PREFIX,
   addCartItem,
   getCartItems,
   removeCartItems,

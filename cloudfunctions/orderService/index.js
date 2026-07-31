@@ -80,6 +80,23 @@ const sanitizeOrder = (order = {}) => {
   return visibleOrder
 }
 
+const getUserProfile = async (openid) => {
+  try {
+    const result = await db.collection('users').doc(openid).get()
+    return result.data || null
+  } catch (err) {
+    return null
+  }
+}
+
+const requireLoggedInProfile = async (openid) => {
+  const profile = await getUserProfile(openid)
+  if (!profile || !normalizeText(profile.nickName, 30) || !normalizeText(profile.avatarUrl, 500)) {
+    throw new BusinessError('LOGIN_REQUIRED', '请先完善微信头像和昵称')
+  }
+  return profile
+}
+
 const validateCreatePayload = (event) => {
   const items = validateItems(event.items)
 
@@ -158,6 +175,7 @@ const getCheckoutOptions = async (event) => {
 }
 
 const createOrders = async (event, openid, splitOrders) => {
+  await requireLoggedInProfile(openid)
   const payload = validateCreatePayload(event)
   const groupedItems = payload.items.reduce((groups, item) => {
     if (!groups[item.productId]) groups[item.productId] = []
@@ -325,19 +343,15 @@ const createOrders = async (event, openid, splitOrders) => {
 }
 
 const getProfile = async (openid) => {
-  try {
-    const result = await db.collection('users').doc(openid).get()
-    const profile = result.data || {}
-    return success({
-      nickName: profile.nickName || '',
-      avatarUrl: profile.avatarUrl || '',
-      name: profile.name || '',
-      phone: profile.phone || '',
-      address: profile.address || ''
-    })
-  } catch (err) {
-    return success(null)
-  }
+  const profile = await getUserProfile(openid) || {}
+  return success({
+    userId: openid,
+    nickName: profile.nickName || '',
+    avatarUrl: profile.avatarUrl || '',
+    name: profile.name || '',
+    phone: profile.phone || '',
+    address: profile.address || ''
+  })
 }
 
 const updateProfile = async (event, openid) => {
@@ -368,10 +382,11 @@ const updateProfile = async (event, openid) => {
       data: { ...profile, createdAt: now, updatedAt: now }
     })
   }
-  return success(profile)
+  return success({ userId: openid, ...profile })
 }
 
 const listOrders = async (openid) => {
+  await requireLoggedInProfile(openid)
   const result = await db.collection('orders')
     .where({ userId: openid })
     .orderBy('createdAt', 'desc')
@@ -381,6 +396,7 @@ const listOrders = async (openid) => {
 }
 
 const getOrder = async (event, openid) => {
+  await requireLoggedInProfile(openid)
   const orderId = normalizeText(event.orderId, 64)
   if (!orderId) throw new BusinessError('INVALID_ORDER', '订单参数无效')
   const result = await db.collection('orders').doc(orderId).get()

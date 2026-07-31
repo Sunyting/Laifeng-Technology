@@ -23,15 +23,18 @@ button::after {
 }
 
 .profile-avatar-button {
-  flex: 0 0 auto;
-  width: 112rpx;
-  height: 112rpx;
-  margin: 0;
-  padding: 0;
+  width: 104rpx;
+  min-width: 104rpx;
+  max-width: 104rpx;
+  height: 104rpx;
+  min-height: 104rpx;
+  max-height: 104rpx;
+  flex: none;
   border: 4rpx solid rgba(255, 255, 255, 0.72);
   border-radius: 50%;
   background: transparent;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .profile-avatar {
@@ -76,17 +79,20 @@ button::after {
 }
 
 .profile-edit {
-  flex: 0 0 auto;
-  min-width: 96rpx;
+  width: 92rpx;
+  min-width: 92rpx;
   height: 56rpx;
-  margin: 0 0 0 16rpx;
-  padding: 0 18rpx;
+  flex: none;
+  margin-left: 16rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.7);
   border-radius: 6rpx;
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   font-size: 22rpx;
+  text-align: center;
+  white-space: nowrap;
   line-height: 54rpx;
+  box-sizing: border-box;
 }
 
 .section {
@@ -120,13 +126,12 @@ button::after {
 }
 
 .section-link {
-  flex: 0 0 auto;
-  margin: 0;
+  flex: none;
   padding: 8rpx 0 8rpx 18rpx;
-  background: transparent;
   color: #667085;
   font-size: 22rpx;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .order-summary {
@@ -191,6 +196,7 @@ button::after {
   border-radius: 4rpx;
   background: #f3faf8;
   text-align: left;
+  line-height: normal;
   box-sizing: border-box;
 }
 
@@ -252,7 +258,9 @@ button::after {
   padding: 20rpx 30rpx;
   border-radius: 0;
   background: #ffffff;
+  color: #101828;
   text-align: left;
+  line-height: normal;
   box-sizing: border-box;
 }
 
@@ -263,6 +271,12 @@ button::after {
 .service-row__title,
 .service-row__description {
   display: block;
+}
+
+.service-row__content {
+  min-width: 0;
+  flex: 1;
+  padding-right: 24rpx;
 }
 
 .service-row__title {
@@ -278,14 +292,21 @@ button::after {
 }
 
 .service-row__arrow {
+  width: 36rpx;
+  flex: none;
   color: #98a2b3;
   font-size: 30rpx;
+  text-align: right;
 }
 
 .service-row__action {
+  width: 64rpx;
+  flex: none;
   color: #146f91;
   font-size: 24rpx;
   font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .page-loading {
@@ -336,14 +357,16 @@ button::after {
 
 .editor-close {
   width: 64rpx;
+  min-width: 64rpx;
   height: 64rpx;
-  margin: 0;
-  padding: 0;
+  flex: none;
   border-radius: 50%;
   background: #f2f4f7;
   color: #475467;
   font-size: 38rpx;
+  text-align: center;
   line-height: 60rpx;
+  box-sizing: border-box;
 }
 
 .profile-form,
@@ -355,6 +378,7 @@ button::after {
   display: flex;
   align-items: center;
   width: 100%;
+  max-width: none;
   height: 116rpx;
   margin: 0 0 22rpx;
   padding: 12rpx 18rpx;
@@ -362,6 +386,7 @@ button::after {
   border-radius: 6rpx;
   background: #ffffff;
   text-align: left;
+  box-sizing: border-box;
 }
 
 .avatar-picker__image {
@@ -429,18 +454,21 @@ button::after {
 }
 
 .editor-save {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 88rpx;
-  margin: 30rpx 0 0;
+  margin-top: 30rpx;
   border-radius: 6rpx;
   background: #146f91;
   color: #ffffff;
   font-size: 28rpx;
   font-weight: 600;
-  line-height: 88rpx;
+  box-sizing: border-box;
 }
 
-.editor-save[disabled] {
+.editor-save--disabled {
   background: #98a2b3;
   color: #ffffff;
 }

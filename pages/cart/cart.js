@@ -3,6 +3,7 @@ const {
   saveCartItems,
   syncCartBadge
 } = require('../../utils/cart')
+const { loadUserSession, openLogin } = require('../../utils/auth')
 const { toFiniteNumber } = require('../../utils/product')
 
 const enrichItem = (item) => ({
@@ -25,12 +26,36 @@ const stripDisplayFields = (item) => {
 Page({
   data: {
     items: [],
+    pageStatus: 'loading',
+    pageMessage: '',
     allSelected: false,
     selectedCount: 0,
     totalPrice: '0.00'
   },
   onShow() {
-    this.refreshCart(getCartItems().map(enrichItem), false)
+    this.setData({ pageStatus: 'loading', pageMessage: '' })
+    loadUserSession(true)
+      .then((session) => {
+        if (!session.loggedIn) {
+          this.setData({
+            items: [],
+            pageStatus: 'loginRequired',
+            pageMessage: '登录后才能使用购物车'
+          })
+          syncCartBadge([])
+          return
+        }
+        this.refreshCart(getCartItems().map(enrichItem), false)
+      })
+      .catch((err) => {
+        console.error('购物车登录状态检查失败:', err)
+        this.setData({
+          items: [],
+          pageStatus: 'error',
+          pageMessage: '登录状态检查失败，请稍后重试'
+        })
+        syncCartBadge([])
+      })
   },
   refreshCart(items, persist = true) {
     const selectedItems = items.filter((item) => item.selected)
@@ -41,6 +66,8 @@ Page({
 
     this.setData({
       items,
+      pageStatus: items.length ? 'success' : 'empty',
+      pageMessage: items.length ? '' : '购物车还是空的',
       allSelected: items.length > 0 && selectedItems.length === items.length,
       selectedCount,
       totalPrice
@@ -104,6 +131,25 @@ Page({
       wx.showToast({ title: '请先选择商品', icon: 'none' })
       return
     }
-    wx.navigateTo({ url: '/pages/checkout/checkout' })
+    loadUserSession(true).then((session) => {
+      if (!session.loggedIn) {
+        openLogin()
+        return
+      }
+      wx.navigateTo({ url: '/pages/checkout/checkout' })
+    }).catch(() => {
+      wx.showToast({ title: '登录状态检查失败，请稍后重试', icon: 'none' })
+    })
+  },
+  handleStatusAction() {
+    if (this.data.pageStatus === 'loginRequired') {
+      openLogin()
+      return
+    }
+    if (this.data.pageStatus === 'error') {
+      this.onShow()
+      return
+    }
+    this.goShopping()
   }
 })

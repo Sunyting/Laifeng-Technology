@@ -1,5 +1,6 @@
 const { normalizeProduct } = require('../../utils/product')
 const { syncCartBadge } = require('../../utils/cart')
+const { loadUserSession } = require('../../utils/auth')
 
 Page({
   data: {
@@ -12,7 +13,7 @@ Page({
     this.loadPage()
   },
   onShow() {
-    syncCartBadge()
+    loadUserSession(true).then(() => syncCartBadge()).catch(() => syncCartBadge([]))
   },
   onPullDownRefresh() {
     this.loadPage().finally(() => wx.stopPullDownRefresh())

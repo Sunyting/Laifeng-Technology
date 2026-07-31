@@ -1,4 +1,5 @@
 const { addCartItem, syncCartBadge } = require('../../utils/cart')
+const { loadUserSession, requireLogin } = require('../../utils/auth')
 const {
   findSelectedSku,
   getInitialSelection,
@@ -23,7 +24,7 @@ Page({
     this.loadProduct()
   },
   onShow() {
-    syncCartBadge()
+    loadUserSession(true).then(() => syncCartBadge()).catch(() => syncCartBadge([]))
   },
   loadProduct() {
     if (!this.productId) {
@@ -102,8 +103,14 @@ Page({
       wx.showToast({ title: '当前规格库存不足', icon: 'none' })
       return
     }
-    addCartItem(product, selectedSku, quantity)
-    wx.showToast({ title: '已加入购物车', icon: 'success' })
+    requireLogin().then((session) => {
+      if (!session) return
+      addCartItem(product, selectedSku, quantity)
+      wx.showToast({ title: '已加入购物车', icon: 'success' })
+    }).catch((err) => {
+      console.error('登录状态检查失败:', err)
+      wx.showToast({ title: '登录状态检查失败，请稍后重试', icon: 'none' })
+    })
   },
   goToCart() {
     wx.switchTab({ url: '/pages/cart/cart' })

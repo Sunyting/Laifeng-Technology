@@ -1,13 +1,13 @@
 <view class="orders-page">
-  <scroll-view class="order-filters" scroll-x enhanced show-scrollbar="{{false}}">
+  <scroll-view wx:if="{{pageStatus !== 'loginRequired'}}" class="order-filters" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="order-filters__inner">
-      <button
+      <view
         wx:for="{{filters}}"
         wx:key="value"
         class="order-filter {{selectedFilter === item.value ? 'order-filter--active' : ''}}"
         data-value="{{item.value}}"
         bindtap="selectFilter"
-      >{{item.label}}</button>
+      >{{item.label}}</view>
     </view>
   </scroll-view>
 
@@ -38,9 +38,9 @@
 
   <status-view
     wx:else
-    status="{{pageStatus}}"
+    status="{{pageStatus === 'loginRequired' ? 'empty' : pageStatus}}"
     message="{{pageMessage}}"
-    action-text="{{pageStatus === 'error' ? '重新加载' : (pageStatus === 'empty' ? (allOrders.length ? '查看全部' : '去逛逛') : '')}}"
+    action-text="{{pageStatus === 'loginRequired' ? '去登录' : (pageStatus === 'error' ? '重新加载' : (pageStatus === 'empty' ? (allOrders.length ? '查看全部' : '去逛逛') : ''))}}"
     bind:action="handleStatusAction"
   ></status-view>
 </view>
