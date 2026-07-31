@@ -29,8 +29,8 @@
       <view class="order-card__footer">
         <text class="order-card__count">共 {{item.totalQuantity}} 件</text>
         <view class="order-card__amount">
-          <text>{{item.amountType === 'estimated' ? '预估金额' : '合计'}}</text>
-          <text class="order-card__price">¥{{item.totalAmountText}}</text>
+          <text>{{item.onlinePaymentLabel}}</text>
+          <text class="order-card__price">¥{{item.onlinePayableAmountText}}</text>
         </view>
       </view>
     </view>

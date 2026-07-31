@@ -67,8 +67,11 @@
     <view class="submit-placeholder"></view>
     <view class="submit-bar">
       <view class="submit-total">
-        <text class="submit-total__label">{{amountLabel}}</text>
-        <text class="submit-total__price">¥{{totalAmountText}}</text>
+        <view class="submit-total__amount">
+          <text class="submit-total__label">{{amountLabel}}</text>
+          <text class="submit-total__price">¥{{totalAmountText}}</text>
+        </view>
+        <text wx:if="{{paymentHint}}" class="submit-total__hint">{{paymentHint}}</text>
       </view>
       <button class="submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitOrder">{{submitButtonText}}</button>
     </view>

@@ -1,11 +1,13 @@
 const { callOrderService, formatOrder, MERCHANT_PHONE } = require('../../utils/order')
+const { queryOrderPayment, requestOrderPayment } = require('../../utils/payment')
 
 Page({
   data: {
     order: null,
     merchantPhone: MERCHANT_PHONE,
     pageStatus: 'loading',
-    pageMessage: ''
+    pageMessage: '',
+    paying: false
   },
   onLoad(options) {
     this.orderId = options.id || ''
@@ -29,5 +31,23 @@ Page({
   },
   callMerchant() {
     wx.makePhoneCall({ phoneNumber: MERCHANT_PHONE })
+  },
+  payOrder() {
+    const order = this.data.order
+    if (!order || !order.canPay || this.data.paying) return
+    this.setData({ paying: true })
+    requestOrderPayment(order._id)
+      .then(() => queryOrderPayment(order._id))
+      .then(() => this.loadOrder())
+      .catch((err) => {
+        if ((err.errMsg || '').includes('cancel')) return
+        console.error('订单支付失败:', err)
+        wx.showModal({
+          title: err.code === 'PAYMENT_NOT_CONFIGURED' ? '支付暂不可用' : '支付未完成',
+          content: err.message || '请稍后重试',
+          showCancel: false
+        })
+      })
+      .finally(() => this.setData({ paying: false }))
   }
 })

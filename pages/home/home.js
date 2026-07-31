@@ -55,7 +55,7 @@ Page({
         this.setData({
         orderCounts: {
           all: orderList.length,
-          unpaid: orderList.filter((order) => order.paymentStatus !== 'paid').length,
+          unpaid: orderList.filter((order) => !order.paymentStatus || ['unpaid', 'paying'].includes(order.paymentStatus)).length,
           paid: orderList.filter((order) => order.paymentStatus === 'paid').length,
           pending: orderList.filter((order) => order.status === 'pending_confirmation').length
         }

@@ -12,6 +12,10 @@ Component({
       type: Object,
       value: null
     },
+    itemType: {
+      type: String,
+      value: ''
+    },
     size: {
       type: String,
       value: 'medium'
@@ -22,17 +26,22 @@ Component({
     maxPrice: 0,
     showRange: false,
     startsAt: false,
+    inspectionFee: false,
     unit: '',
     remark: ''
   },
   observers: {
-    'priceRange, priceMeta, sku': function updatePrice(priceRange, priceMeta, sku) {
+    'priceRange, priceMeta, sku, itemType': function updatePrice(priceRange, priceMeta, sku, itemType) {
       if (sku && sku.id) {
+        const inspectionFee = itemType === 'service' && (
+          sku.paymentMode === 'inspection_fee' || (!sku.paymentMode && sku.priceType === 'starting')
+        )
         this.setData({
           displayPrice: Number(sku.prices) || 0,
           maxPrice: 0,
           showRange: false,
           startsAt: sku.priceType === 'starting',
+          inspectionFee,
           unit: sku.unit || '',
           remark: sku.priceRemark || ''
         })
@@ -47,6 +56,7 @@ Component({
         maxPrice: max,
         showRange: !startsAt && min !== max,
         startsAt,
+        inspectionFee: Boolean(priceMeta && priceMeta.inspectionFee),
         unit: priceMeta && priceMeta.unit ? priceMeta.unit : '',
         remark: priceMeta && priceMeta.remark ? priceMeta.remark : ''
       })

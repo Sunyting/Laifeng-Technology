@@ -120,9 +120,21 @@
   color: #c4320a;
 }
 
+.order-card__payment--paying,
+.order-card__payment--refunding {
+  background: #eef8fc;
+  color: #1677a7;
+}
+
 .order-card__payment--paid {
   background: #ecfdf3;
   color: #027a48;
+}
+
+.order-card__payment--closed,
+.order-card__payment--refunded {
+  background: #f2f4f7;
+  color: #667085;
 }
 
 .order-card__appointment {

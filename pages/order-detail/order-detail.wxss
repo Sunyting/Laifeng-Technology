@@ -66,8 +66,20 @@
   font-weight: 600;
 }
 
+.info-row__value--payment-paying,
+.info-row__value--payment-refunding {
+  color: #1677a7;
+  font-weight: 600;
+}
+
 .info-row__value--payment-paid {
   color: #027a48;
+  font-weight: 600;
+}
+
+.info-row__value--payment-closed,
+.info-row__value--payment-refunded {
+  color: #667085;
   font-weight: 600;
 }
 
@@ -160,6 +172,15 @@
   font-weight: 700;
 }
 
+.payment-hint {
+  display: block;
+  margin-top: 14rpx;
+  color: #667085;
+  font-size: 22rpx;
+  line-height: 1.5;
+  text-align: right;
+}
+
 .order-note {
   padding: 26rpx 30rpx;
   color: #667085;
@@ -167,6 +188,7 @@
   line-height: 1.6;
 }
 
+.payment-button,
 .orders-button {
   min-height: 76rpx;
   margin: 8rpx 30rpx 0;
@@ -178,6 +200,13 @@
   line-height: 74rpx;
 }
 
+.payment-button {
+  border-color: #1677a7;
+  background: #1677a7;
+  color: #ffffff;
+}
+
+.payment-button::after,
 .orders-button::after {
   border: 0;
 }

@@ -2,7 +2,8 @@
   <text class="price__symbol">¥</text>
   <text class="price__value">{{displayPrice}}</text>
   <text wx:if="{{showRange}}" class="price__range">-{{maxPrice}}</text>
-  <text wx:if="{{startsAt}}" class="price__suffix">起</text>
+  <text wx:if="{{inspectionFee}}" class="price__suffix">检查费</text>
+  <text wx:elif="{{startsAt}}" class="price__suffix">起</text>
   <text wx:if="{{unit}}" class="price__suffix">/{{unit}}</text>
   <text wx:if="{{remark}}" class="price__remark">{{remark}}</text>
 </view>

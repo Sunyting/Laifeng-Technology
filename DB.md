@@ -114,6 +114,8 @@ specs
 | `status` | `string` | 是 | SKU 状态，当前已出现 `"1"` |
 | `stock` | `number` | 是 | 可售库存；服务类当前以 `999` 表示充足库存 |
 | `priceType` | `"fixed" \| "starting"` | 是 | 固定价格或起始价格 |
+| `paymentMode` | `"full" \| "inspection_fee"` | 否 | 在线付全款或仅付检查费；缺省时服务类 `starting` 按 `inspection_fee`，其他按 `full` 兼容 |
+| `inspectionFeeCents` | `number` | 否 | 单件检查费，单位为分且必须为正整数；检查费模式缺省时暂以 `prices` 换算为分 |
 | `unit` | `string` | 否 | 计价单位，如“张”“米”“个”“点” |
 | `priceRemark` | `string` | 否 | 价格补充说明，如“检测费”“另加维修费” |
 
@@ -220,12 +222,23 @@ specs
 | `totalQuantity` | `number` | 是 | 商品总件数 |
 | `totalAmount` | `number` | 是 | 云端按 SKU 单价计算的金额 |
 | `amountType` | `"fixed" \| "estimated"` | 是 | 固定金额或预估金额 |
+| `onlinePaymentType` | `"full" \| "inspection_fee" \| "mixed"` | 是 | 本次在线支付全款、检查费或两者混合 |
+| `onlinePayableAmountCents` | `number` | 是 | 本次微信支付应付金额，单位为分，由云函数计算 |
+| `inspectionFeeCents` | `number` | 是 | 订单内检查费合计，单位为分；无检查费时为 `0` |
+| `paidAmountCents` | `number` | 是 | 已确认到账金额，单位为分，新订单为 `0` |
+| `currentPaymentId` | `string \| null` | 是 | 当前有效支付单号，引用 `payments._id`；尚未创建或已释放时为 `null` |
+| `paymentExpiresAt` | `number \| null` | 是 | 当前支付单过期时间；尚未创建支付单时为 `null` |
+| `paidAt` | `number \| null` | 是 | 在线支付到账时间；未支付时为 `null` |
+| `quoteStatus` | `"not_required" \| "pending" \| "confirmed"` | 是 | 后续维修报价状态 |
+| `finalQuoteAmountCents` | `number \| null` | 是 | 检测后的最终报价，单位为分 |
+| `offlineAmountCents` | `number \| null` | 是 | 后续到店实收维修费，单位为分 |
+| `offlinePaymentStatus` | `"not_required" \| "pending" \| "paid"` | 是 | 后续到店付款状态 |
 | `orderType` | `"physical" \| "service"` | 是 | 实体商品订单或服务订单 |
 | `fulfillmentType` | `"store" \| "delivery"` | 是 | 到店办理或上门服务；必须同时被订单内所有商品的 `fulfillmentTypes` 允许 |
 | `contact` | `object` | 是 | 联系人姓名、电话和地址快照；到店订单的地址为空字符串 |
 | `appointment` | `Appointment \| null` | 是 | 上门预约时间；仅 `delivery` 订单保存预约对象，到店订单固定为 `null` |
 | `note` | `string` | 否 | 用户订单备注，最多 200 个字符 |
-| `paymentStatus` | `"unpaid" \| "paid"` | 是 | 付款状态，新订单初始为 `unpaid`；与业务订单状态相互独立 |
+| `paymentStatus` | `"unpaid" \| "paying" \| "paid" \| "closed" \| "refunding" \| "refunded"` | 是 | 在线付款状态，新订单初始为 `unpaid`；与业务订单状态相互独立 |
 | `status` | `string` | 是 | 当前订单状态，初始为 `pending_confirmation` |
 | `statusHistory` | `OrderStatus[]` | 是 | 订单状态变更记录 |
 | `createdAt` | `number` | 是 | 下单时间，Unix 毫秒时间戳 |
@@ -248,6 +261,10 @@ specs
 | `itemType` | `"physical" \| "service"` | 是 | 下单时的商品类型快照 |
 | `fulfillmentType` | `"store" \| "delivery"` | 是 | 该订单项下单时选择的办理方式 |
 | `priceType` | `string` | 是 | 下单时计价类型快照 |
+| `paymentMode` | `"full" \| "inspection_fee"` | 是 | 下单时的在线付款方式快照 |
+| `inspectionFeeCents` | `number` | 是 | 单件检查费快照，单位为分；全款项目为 `0` |
+| `onlineUnitAmountCents` | `number` | 是 | 单件在线应付金额，单位为分 |
+| `onlineSubtotalCents` | `number` | 是 | 当前订单项在线应付小计，单位为分 |
 | `unit` | `string` | 否 | 下单时计价单位快照 |
 | `priceRemark` | `string` | 否 | 下单时价格说明快照 |
 
@@ -263,7 +280,9 @@ specs
 
 当前订单状态：`pending_confirmation`（待商家确认）、`confirmed`（已确认）、`completed`（已完成）、`cancelled`（已取消）。当前版本只由小程序创建待确认订单，后续状态由管理端维护。
 
-当前付款状态：`unpaid`（待付款）、`paid`（已付款）。当前版本尚未接入微信支付，新订单统一写入 `unpaid`，`paid` 由后续支付流程或管理端确认后维护。历史订单缺少该字段时，小程序兼容显示为“待付款”。
+当前付款状态：`unpaid`（待付款）、`paying`（支付确认中）、`paid`（已付款）、`closed`（已关闭）、`refunding`（退款中）、`refunded`（已退款）。历史订单缺少新增金额字段时，小程序暂按 `totalAmount` 兼容展示在线应付金额。
+
+固定价订单在线支付全款。服务类起步价或显式设置 `paymentMode: "inspection_fee"` 的 SKU 在线只支付检查费，检测后的维修费用记录在 `offlineAmountCents`，由顾客到店支付。一个服务订单同时包含全款和检查费项目时，`onlinePaymentType` 为 `mixed`，在线应付金额为两类项目金额之和。
 
 ### 当前索引
 
@@ -273,7 +292,32 @@ specs
 | `_openid_1` | `_openid` | 升序 | 否 |
 | `userId_1_createdAt_-1` | `userId` 升序、`createdAt` 降序 | 复合 | 否 |
 
-## 八、权限与服务端写入
+## 八、`payments` 支付集合（待部署）
+
+当前云环境已通过集成中心创建微信支付函数 `laifeng-pay-8cd3oihn-demo-scfweb`，本地已接入仅按业务订单下单和查单的安全路由；函数代码和 `payments` 集合尚未部署。本节是支付功能部署时必须采用的结构，不属于“一、已部署结构概览”。
+
+集成中心生成函数后，必须把实际函数名配置到 `app.js` 的 `globalData.payment.functionName`，并实现 `/wx-pay/order` 与 `/wx-pay/query` 两个仅接收 `orderId` 的业务路由；不得直接采用允许客户端传金额的通用下单入口。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `_id` | `string` | 是 | 微信支付商户订单号 `outTradeNo`，全局唯一 |
+| `orderId` | `string` | 是 | 引用 `orders._id` |
+| `userId` | `string` | 是 | 支付用户 OpenID，只能由服务端写入 |
+| `amountCents` | `number` | 是 | 本次支付金额，必须等于订单的 `onlinePayableAmountCents` |
+| `status` | `"pending" \| "paid" \| "closed" \| "refunding" \| "refunded"` | 是 | 支付单状态 |
+| `transactionId` | `string` | 否 | 微信支付订单号 |
+| `requestId` | `string` | 否 | 微信支付响应头 `Request-ID`，用于问题排查 |
+| `paymentParams` | `object \| null` | 是 | 微信统一下单成功后返回的小程序调起支付参数；下单请求处理中可为 `null` |
+| `expiresAt` | `number` | 是 | 支付单过期时间，Unix 毫秒时间戳；同时写入微信下单的 `time_expire` |
+| `paidAt` | `number \| null` | 是 | 支付到账时间 |
+| `refundId` | `string` | 否 | 微信退款单号 |
+| `refundedAt` | `number \| null` | 否 | 全额退款成功时间 |
+| `createdAt` | `number` | 是 | 创建时间 |
+| `updatedAt` | `number` | 是 | 更新时间 |
+
+支付函数必须只接收 `orderId`，重新读取订单归属、状态及 `onlinePayableAmountCents` 后创建微信支付单，不能接收客户端传入的金额。小程序通过 `wx.cloud.callHTTPFunction` 调用，平台注入的 `x-wx-openid` 是支付函数唯一接受的用户身份来源。支付成功以服务端通知或主动查单结果为准，`wx.requestPayment` 的成功回调只用于界面反馈。支付通知必须校验商户订单号、金额、币种和用户归属，并以事务或条件更新实现幂等。
+
+## 九、权限与服务端写入
 
 | 集合 | 已部署权限 | 客户端读取 | 客户端写入 |
 | --- | --- | --- | --- |
@@ -293,7 +337,7 @@ specs
 
 混合购物车结算时，`orderService` 在同一事务中按商品业务字段自动分组，最多形成实体商品、到店服务和上门服务 3 个订单。每个服务 SKU 可以分别选择办理方式，服务端会重新读取商品允许的 `fulfillmentTypes`，不能由客户端绕过。预约时间只写入需要预约的上门服务订单；实体商品和到店服务订单的 `appointment` 固定为 `null`。`finite` 商品在事务内扣减库存，`unlimited` 服务不扣减库存。任一商品校验或库存扣减失败时，全部订单一起回滚。
 
-## 九、结构同步规则
+## 十、结构同步规则
 
 1. `DB.md` 是结构基准，业务规划附录不是已部署数据清单。
 2. 修改集合或字段前，先搜索小程序、云函数和后台配置中的全部调用方。
@@ -303,7 +347,7 @@ specs
 6. 商品图片只保存稳定的云文件 ID，不把临时访问 URL 写入数据库。
 7. 当前数据由云开发后台维护，新增记录必须符合本节字段约束。
 
-## 十、已部署商品目录
+## 十一、已部署商品目录
 
 以下商品与 SKU 已录入云端，当前商品均已配置主图。
 
@@ -472,7 +516,7 @@ specs
 ```
 
 
-## 十一、已部署数据统计
+## 十二、已部署数据统计
 
 | 一级分类 | 商品数 | SKU 总数 | 实物/服务 |
 |----------|--------|----------|-----------|
@@ -489,7 +533,7 @@ specs
 
 ---
 
-## 十二、SKU 库存类型说明
+## 十三、SKU 库存类型说明
 
 | 类型 | 库存值 | 适用商品 |
 |------|--------|----------|

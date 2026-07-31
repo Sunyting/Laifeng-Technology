@@ -10,7 +10,11 @@ const ORDER_TYPE_LABELS = {
 }
 const PAYMENT_STATUS_LABELS = {
   unpaid: '待付款',
-  paid: '已付款'
+  paying: '支付确认中',
+  paid: '已付款',
+  closed: '已关闭',
+  refunding: '退款中',
+  refunded: '已退款'
 }
 const MERCHANT_PHONE = '13872533145'
 
@@ -32,7 +36,15 @@ const formatOrderItem = (item = {}) => ({
 
 const formatOrder = (order = {}) => {
   const orderType = order.orderType || (order.fulfillmentType === 'delivery' ? 'service' : '')
-  const paymentStatus = order.paymentStatus === 'paid' ? 'paid' : 'unpaid'
+  const paymentStatus = PAYMENT_STATUS_LABELS[order.paymentStatus] ? order.paymentStatus : 'unpaid'
+  const fallbackPayableAmountCents = Math.round((Number(order.totalAmount) || 0) * 100)
+  const onlinePayableAmountCents = Number.isInteger(order.onlinePayableAmountCents)
+    ? order.onlinePayableAmountCents
+    : fallbackPayableAmountCents
+  const onlinePaymentType = order.onlinePaymentType || (order.amountType === 'estimated' ? 'inspection_fee' : 'full')
+  const onlinePaymentLabel = onlinePaymentType === 'inspection_fee'
+    ? '本次支付检查费'
+    : (onlinePaymentType === 'mixed' ? '本次在线应付' : '在线应付')
   return {
     ...order,
     orderType,
@@ -42,6 +54,13 @@ const formatOrder = (order = {}) => {
     paymentStatusLabel: PAYMENT_STATUS_LABELS[paymentStatus],
     orderTypeLabel: ORDER_TYPE_LABELS[orderType] || '订单',
     totalAmountText: formatMoney(order.totalAmount),
+    onlinePayableAmountCents,
+    onlinePayableAmountText: formatMoney(onlinePayableAmountCents / 100),
+    onlinePaymentLabel,
+    paymentActionText: paymentStatus === 'paying'
+      ? '继续支付'
+      : (onlinePaymentType === 'inspection_fee' ? '支付检查费' : '立即支付'),
+    canPay: ['unpaid', 'paying'].includes(paymentStatus) && order.status !== 'cancelled',
     createdAtText: formatOrderTime(order.createdAt),
     appointmentText: order.appointment && order.appointment.date && order.appointment.time
       ? `${order.appointment.date} ${order.appointment.time}`

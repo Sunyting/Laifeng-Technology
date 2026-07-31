@@ -22,7 +22,7 @@
             <text class="cart-name">{{item.name}}</text>
             <text wx:if="{{item.specText}}" class="cart-spec">{{item.specText}}</text>
           </view>
-          <price-view sku="{{item.displaySku}}" size="small"></price-view>
+          <price-view sku="{{item.displaySku}}" item-type="{{item.itemType}}" size="small"></price-view>
           <view class="cart-actions">
             <view class="stepper">
               <button class="stepper__button" disabled="{{item.quantity <= 1}}" data-key="{{item.key}}" bindtap="decreaseQuantity" aria-label="减少数量">−</button>

@@ -13,9 +13,12 @@ const enrichItem = (item) => ({
     id: item.skuId,
     prices: item.prices,
     priceType: item.priceType,
+    paymentMode: item.paymentMode,
+    inspectionFeeCents: item.inspectionFeeCents,
     unit: item.unit,
     priceRemark: item.priceRemark
-  }
+  },
+  itemType: item.itemType || ''
 })
 
 const stripDisplayFields = (item) => {

@@ -13,7 +13,7 @@
     </view>
 
     <view class="detail-section summary">
-      <price-view price-range="{{product.priceRange}}" price-meta="{{product.priceMeta}}" sku="{{selectedSku}}" size="large"></price-view>
+      <price-view price-range="{{product.priceRange}}" price-meta="{{product.priceMeta}}" sku="{{selectedSku}}" item-type="{{product.itemType}}" size="large"></price-view>
       <text class="summary__name">{{product.name}}</text>
       <text wx:if="{{product.description}}" class="summary__description">{{product.description}}</text>
     </view>

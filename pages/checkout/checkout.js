@@ -34,8 +34,30 @@ const toCheckoutItem = (item) => formatOrderItem({
   subtotal: toFiniteNumber(item.prices) * toFiniteNumber(item.quantity),
   quantity: toFiniteNumber(item.quantity, 1),
   priceType: item.priceType,
+  paymentMode: item.paymentMode,
+  inspectionFeeCents: toFiniteNumber(item.inspectionFeeCents),
   priceRemark: item.priceRemark
 })
+
+const getOnlinePaymentSummary = (items) => {
+  const summary = items.reduce((result, item) => {
+    const unitPriceCents = Math.round(toFiniteNumber(item.unitPrice) * 100)
+    const isInspectionFee = item.itemType === 'service' && (
+      item.paymentMode === 'inspection_fee' || (!item.paymentMode && item.priceType === 'starting')
+    )
+    const onlineUnitAmountCents = isInspectionFee && item.inspectionFeeCents > 0
+      ? Math.round(item.inspectionFeeCents)
+      : unitPriceCents
+    result.onlinePayableAmountCents += onlineUnitAmountCents * toFiniteNumber(item.quantity, 1)
+    result.hasInspectionFee = result.hasInspectionFee || isInspectionFee
+    return result
+  }, { onlinePayableAmountCents: 0, hasInspectionFee: false })
+  return {
+    totalAmountText: formatMoney(summary.onlinePayableAmountCents / 100),
+    amountLabel: summary.hasInspectionFee ? '本次应付' : '合计',
+    paymentHint: summary.hasInspectionFee ? '起步价服务仅收检查费，维修费到店支付。' : ''
+  }
+}
 
 const getDefaultFulfillmentType = (fulfillmentTypes) => {
   if (fulfillmentTypes.length === 1) return fulfillmentTypes[0]
@@ -61,6 +83,7 @@ Page({
     selectedKeys: [],
     totalAmountText: '0.00',
     amountLabel: '合计',
+    paymentHint: '',
     physicalItems: [],
     serviceItems: [],
     hasPhysicalItems: false,
@@ -112,13 +135,12 @@ Page({
     }
 
     const items = selectedItems.map(toCheckoutItem)
-    const hasEstimatedPrice = items.some((item) => item.priceType === 'starting' || item.priceRemark)
     const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0)
     this.setData({
       items,
       selectedKeys: selectedItems.map((item) => item.key),
       totalAmountText: formatMoney(totalAmount),
-      amountLabel: hasEstimatedPrice ? '预估合计' : '合计'
+      amountLabel: '合计'
     })
     Promise.all([
       this.loadProfile(),
@@ -146,8 +168,9 @@ Page({
       quantity: item.quantity
     }))
     return callOrderService('getCheckoutOptions', { items: orderItems })
-      .then(({ itemOptions = [], onsiteProductIds = [] }) => {
+      .then(({ itemOptions = [], itemPaymentOptions = [], onsiteProductIds = [] }) => {
         const itemOptionMap = new Map(itemOptions.map((option) => [option.productId, option]))
+        const itemPaymentOptionMap = new Map(itemPaymentOptions.map((option) => [option.key, option]))
         const legacyOnsiteProductIds = new Set(onsiteProductIds)
         const classifiedItems = items.map((item) => {
           const option = itemOptionMap.get(item.productId) || (legacyOnsiteProductIds.has(item.productId)
@@ -157,15 +180,25 @@ Page({
             ? option.fulfillmentTypes
             : ['store']
           const itemType = option.itemType === 'service' ? 'service' : 'physical'
-          return {
+          const paymentOption = itemPaymentOptionMap.get(item.key) || {}
+          const unitPrice = Number.isInteger(paymentOption.unitPriceCents)
+            ? paymentOption.unitPriceCents / 100
+            : item.unitPrice
+          const normalizedItem = formatOrderItem({
             ...item,
             itemType,
+            unitPrice,
+            subtotal: unitPrice * item.quantity,
+            paymentMode: paymentOption.paymentMode || item.paymentMode,
+            inspectionFeeCents: Number.isInteger(paymentOption.inspectionFeeCents)
+              ? paymentOption.inspectionFeeCents
+              : item.inspectionFeeCents,
             fulfillmentTypes,
             requiresAppointment: Boolean(option.requiresAppointment),
             fulfillmentType: itemType === 'service' ? getDefaultFulfillmentType(fulfillmentTypes) : 'store',
-            canChooseFulfillment: fulfillmentTypes.includes('store') && fulfillmentTypes.includes('delivery'),
-            displayItems: [item]
-          }
+            canChooseFulfillment: fulfillmentTypes.includes('store') && fulfillmentTypes.includes('delivery')
+          })
+          return { ...normalizedItem, displayItems: [normalizedItem] }
         })
         const physicalItems = classifiedItems.filter((item) => item.itemType === 'physical')
         const serviceItems = classifiedItems.filter((item) => item.itemType === 'service')
@@ -177,6 +210,7 @@ Page({
           hasPhysicalItems: physicalItems.length > 0,
           hasServiceItems: serviceItems.length > 0,
           hasDeliveryCapableItems: serviceItems.some((item) => item.fulfillmentTypes.includes('delivery')),
+          ...getOnlinePaymentSummary(classifiedItems),
           ...groups
         })
       })

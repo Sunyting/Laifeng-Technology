@@ -141,6 +141,32 @@ const getProductBusinessConfig = (product) => {
   }
 }
 
+const getSkuPaymentConfig = (sku, productConfig, unitPriceCents, productName) => {
+  const configuredPaymentMode = normalizeText(sku.paymentMode, 30)
+  if (configuredPaymentMode && !['full', 'inspection_fee'].includes(configuredPaymentMode)) {
+    throw new BusinessError('INVALID_PRODUCT_CONFIG', `${productName}的付款方式配置异常，请联系门店`)
+  }
+  const paymentMode = configuredPaymentMode || (
+    productConfig.itemType === 'service' && sku.priceType === 'starting'
+      ? 'inspection_fee'
+      : 'full'
+  )
+  if (paymentMode === 'full') {
+    return { paymentMode, inspectionFeeCents: 0, onlineUnitAmountCents: unitPriceCents }
+  }
+
+  const configuredInspectionFeeCents = Number(sku.inspectionFeeCents)
+  const hasConfiguredInspectionFee = sku.inspectionFeeCents !== undefined && sku.inspectionFeeCents !== null
+  if (hasConfiguredInspectionFee && (!Number.isInteger(configuredInspectionFeeCents) || configuredInspectionFeeCents < 1)) {
+    throw new BusinessError('INVALID_PRODUCT_CONFIG', `${productName}的检查费配置异常，请联系门店`)
+  }
+  const inspectionFeeCents = hasConfiguredInspectionFee ? configuredInspectionFeeCents : unitPriceCents
+  if (inspectionFeeCents < 1) {
+    throw new BusinessError('INVALID_PRICE', `${productName}的检查费不能低于0.01元`)
+  }
+  return { paymentMode, inspectionFeeCents, onlineUnitAmountCents: inspectionFeeCents }
+}
+
 const buildOrderGroups = (itemSnapshots) => {
   const orderGroupMap = itemSnapshots.reduce((groups, snapshot) => {
     const key = `${snapshot.itemType}:${snapshot.fulfillmentType}`
@@ -164,14 +190,31 @@ const getCheckoutOptions = async (event) => {
     const result = await db.collection('goods').doc(productId).get()
     return result.data
   }))
+  const productMap = new Map(products.map((product) => [product && product._id, product]))
   const itemOptions = products.map((product) => {
     if (!product || product.status !== '1') throw new BusinessError('PRODUCT_UNAVAILABLE', '部分商品已下架，请返回购物车重新选择')
     return { productId: product._id, ...getProductBusinessConfig(product) }
   })
+  const itemPaymentOptions = items.map((item) => {
+    const product = productMap.get(item.productId)
+    const productConfig = getProductBusinessConfig(product)
+    const sku = (Array.isArray(product.SKUlist) ? product.SKUlist : []).find((candidate) => candidate.id === item.skuId)
+    const unitPrice = Number(sku && sku.prices)
+    if (!sku || sku.status !== '1') throw new BusinessError('SKU_UNAVAILABLE', `${product.name}的所选规格已下架`)
+    if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+      throw new BusinessError('INVALID_PRICE', `${product.name}价格异常，请联系门店`)
+    }
+    const unitPriceCents = Math.round(unitPrice * 100)
+    return {
+      key: `${item.productId}::${item.skuId}`,
+      unitPriceCents,
+      ...getSkuPaymentConfig(sku, productConfig, unitPriceCents, product.name)
+    }
+  })
   const onsiteProductIds = itemOptions
     .filter((option) => option.fulfillmentTypes.includes('delivery'))
     .map((option) => option.productId)
-  return success({ itemOptions, onsiteProductIds })
+  return success({ itemOptions, itemPaymentOptions, onsiteProductIds })
 }
 
 const createOrders = async (event, openid, splitOrders) => {
@@ -213,6 +256,8 @@ const createOrders = async (event, openid, splitOrders) => {
 
         const unitPriceCents = Math.round(unitPrice * 100)
         const subtotalCents = unitPriceCents * selectedItem.quantity
+        const paymentConfig = getSkuPaymentConfig(sku, productConfig, unitPriceCents, product.name)
+        const onlineSubtotalCents = paymentConfig.onlineUnitAmountCents * selectedItem.quantity
         const requestedFulfillmentType = selectedItem.fulfillmentType || (productConfig.fulfillmentTypes.length === 1
           ? productConfig.fulfillmentTypes[0]
           : payload.legacyFulfillmentType)
@@ -240,6 +285,10 @@ const createOrders = async (event, openid, splitOrders) => {
             itemType: productConfig.itemType,
             fulfillmentType: requestedFulfillmentType,
             priceType: sku.priceType || 'fixed',
+            paymentMode: paymentConfig.paymentMode,
+            inspectionFeeCents: paymentConfig.inspectionFeeCents,
+            onlineUnitAmountCents: paymentConfig.onlineUnitAmountCents,
+            onlineSubtotalCents,
             unit: sku.unit || '',
             priceRemark: sku.priceRemark || ''
           }
@@ -274,10 +323,16 @@ const createOrders = async (event, openid, splitOrders) => {
 
       const orderItems = group.snapshots.map((snapshot) => snapshot.item)
       const totalAmountCents = orderItems.reduce((sum, item) => sum + Math.round(item.subtotal * 100), 0)
+      const onlinePayableAmountCents = orderItems.reduce((sum, item) => sum + item.onlineSubtotalCents, 0)
+      const inspectionFeeCents = orderItems.reduce((sum, item) => {
+        return sum + (item.paymentMode === 'inspection_fee' ? item.onlineSubtotalCents : 0)
+      }, 0)
       const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0)
-      const amountType = orderItems.some((item) => item.priceType === 'starting' || item.priceRemark)
-        ? 'estimated'
-        : 'fixed'
+      const inspectionItemCount = orderItems.filter((item) => item.paymentMode === 'inspection_fee').length
+      const amountType = inspectionItemCount > 0 ? 'estimated' : 'fixed'
+      const onlinePaymentType = inspectionItemCount === orderItems.length
+        ? 'inspection_fee'
+        : (inspectionItemCount > 0 ? 'mixed' : 'full')
       const order = {
         orderNo,
         userId: openid,
@@ -285,6 +340,17 @@ const createOrders = async (event, openid, splitOrders) => {
         totalQuantity,
         totalAmount: totalAmountCents / 100,
         amountType,
+        onlinePaymentType,
+        onlinePayableAmountCents,
+        inspectionFeeCents,
+        paidAmountCents: 0,
+        currentPaymentId: null,
+        paymentExpiresAt: null,
+        paidAt: null,
+        quoteStatus: amountType === 'estimated' ? 'pending' : 'not_required',
+        finalQuoteAmountCents: null,
+        offlineAmountCents: null,
+        offlinePaymentStatus: amountType === 'estimated' ? 'pending' : 'not_required',
         orderType: group.orderType,
         fulfillmentType: group.fulfillmentType,
         contact: {
@@ -304,7 +370,8 @@ const createOrders = async (event, openid, splitOrders) => {
         orderId: orderNo,
         orderNo,
         orderType: group.orderType,
-        fulfillmentType: group.fulfillmentType
+        fulfillmentType: group.fulfillmentType,
+        onlinePayableAmountCents
       })
     }
 

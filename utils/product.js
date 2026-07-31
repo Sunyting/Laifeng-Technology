@@ -24,6 +24,9 @@ const normalizeProduct = (product = {}) => {
     },
     priceMeta: {
       startsAt: minPriceSkus.some((sku) => sku.priceType === 'starting'),
+      inspectionFee: product.itemType === 'service' && minPriceSkus.some((sku) => {
+        return sku.paymentMode === 'inspection_fee' || (!sku.paymentMode && sku.priceType === 'starting')
+      }),
       unit: units.length === 1 && skuList.every((sku) => sku.unit === units[0]) ? units[0] : '',
       remark: remarks.length === 1 && skuList.every((sku) => sku.priceRemark === remarks[0]) ? remarks[0] : ''
     },

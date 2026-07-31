@@ -58,6 +58,9 @@ Page({
       ? allOrders
       : allOrders.filter((order) => {
         if (selectedFilter === 'pending_confirmation') return order.status === selectedFilter
+        if (selectedFilter === 'unpaid') {
+          return ['unpaid', 'paying'].includes(order.paymentStatus)
+        }
         return order.paymentStatus === selectedFilter
       })
     this.setData({

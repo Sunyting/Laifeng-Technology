@@ -214,9 +214,26 @@
 .submit-total {
   display: flex;
   flex: 1;
+  align-items: flex-end;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.submit-total__amount {
+  display: flex;
   align-items: baseline;
   justify-content: flex-end;
-  min-width: 0;
+}
+
+.submit-total__hint {
+  display: block;
+  max-width: 430rpx;
+  margin-top: 4rpx;
+  color: #667085;
+  font-size: 19rpx;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .submit-total__label {
