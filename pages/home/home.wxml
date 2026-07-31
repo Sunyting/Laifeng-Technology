@@ -1,23 +1,130 @@
-<view class="home-page">
-  <view class="profile-header">
-    <text class="profile-header__title">来锋科技</text>
-    <text class="profile-header__subtitle">维修、安装与数码服务</text>
+<view class="profile-page">
+  <view class="profile-hero">
+    <button class="profile-avatar-button" bindtap="openProfileEditor" aria-label="完善微信资料">
+      <image wx:if="{{profile.avatarUrl}}" class="profile-avatar" src="{{profile.avatarUrl}}" mode="aspectFill"></image>
+      <view wx:else class="profile-avatar profile-avatar--placeholder">{{avatarText}}</view>
+    </button>
+    <view class="profile-identity">
+      <text class="profile-name">{{profile.nickName || '微信资料未完善'}}</text>
+      <text class="profile-description">{{profile.nickName ? '欢迎回来，您的服务记录都在这里' : '点击头像完善头像和昵称'}}</text>
+    </view>
+    <button class="profile-edit" bindtap="openProfileEditor">{{profile.nickName ? '编辑' : '完善'}}</button>
   </view>
 
-  <view class="menu-list">
-    <button class="menu-item" bindtap="openOrders">
+  <view class="section order-section">
+    <view class="section-heading">
+      <text class="section-title">我的订单</text>
+      <button class="section-link" data-filter="all" bindtap="openOrders">查看全部 ></button>
+    </view>
+    <view class="order-summary">
+      <button class="order-summary__item" data-filter="all" bindtap="openOrders">
+        <text class="order-summary__count">{{orderCounts.all}}</text>
+        <text class="order-summary__label">全部订单</text>
+      </button>
+      <button class="order-summary__item" data-filter="unpaid" bindtap="openOrders">
+        <text class="order-summary__count order-summary__count--warm">{{orderCounts.unpaid}}</text>
+        <text class="order-summary__label">待付款</text>
+      </button>
+      <button class="order-summary__item" data-filter="paid" bindtap="openOrders">
+        <text class="order-summary__count order-summary__count--green">{{orderCounts.paid}}</text>
+        <text class="order-summary__label">已付款</text>
+      </button>
+      <button class="order-summary__item" data-filter="pending_confirmation" bindtap="openOrders">
+        <text class="order-summary__count">{{orderCounts.pending}}</text>
+        <text class="order-summary__label">待确认</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="section address-section">
+    <view class="section-heading">
       <view>
-        <text class="menu-item__title">我的订单</text>
-        <text class="menu-item__description">查看订单状态和商品明细</text>
+        <text class="section-title">默认上门地址</text>
+        <text class="section-caption">预约维修时自动带入</text>
       </view>
-      <text class="menu-item__arrow">›</text>
+      <button class="section-link" bindtap="openAddressEditor">{{profile.address ? '修改' : '添加'}} ></button>
+    </view>
+    <button class="address-content" bindtap="openAddressEditor">
+      <block wx:if="{{profile.address}}">
+        <view class="address-contact">
+          <text class="address-name">{{profile.name}}</text>
+          <text class="address-phone">{{profile.phone}}</text>
+        </view>
+        <text class="address-detail">{{profile.address}}</text>
+      </block>
+      <view wx:else class="address-empty">
+        <text class="address-empty__title">还没有默认地址</text>
+        <text class="address-empty__description">添加后，预约上门服务会更方便</text>
+      </view>
     </button>
-    <button class="menu-item" bindtap="openCart">
+  </view>
+
+  <view class="service-list">
+    <button class="service-row" bindtap="openCart">
       <view>
-        <text class="menu-item__title">购物车</text>
-        <text class="menu-item__description">继续选择商品或服务</text>
+        <text class="service-row__title">购物车</text>
+        <text class="service-row__description">继续选择商品或维修服务</text>
       </view>
-      <text class="menu-item__arrow">›</text>
+      <text class="service-row__arrow">></text>
     </button>
+    <button
+      class="service-row"
+      open-type="contact"
+      session-from="source=personal_center"
+      aria-label="联系在线客服"
+    >
+      <view>
+        <text class="service-row__title">在线客服</text>
+        <text class="service-row__description">在线咨询商品、维修和订单问题</text>
+      </view>
+      <text class="service-row__action">咨询</text>
+    </button>
+    <button class="service-row" bindtap="callMerchant">
+      <view>
+        <text class="service-row__title">电话联系</text>
+        <text class="service-row__description">13872533145</text>
+      </view>
+      <text class="service-row__action">拨打</text>
+    </button>
+  </view>
+
+  <view wx:if="{{isLoading}}" class="page-loading">正在加载...</view>
+
+  <view wx:if="{{editorType}}" class="editor-mask" bindtap="closeEditor">
+    <view class="editor-panel" catchtap="noop">
+      <view class="editor-header">
+        <text class="editor-title">{{editorType === 'profile' ? '完善微信资料' : '默认上门地址'}}</text>
+        <button class="editor-close" bindtap="closeEditor" aria-label="关闭">×</button>
+      </view>
+
+      <view wx:if="{{editorType === 'profile'}}" class="profile-form">
+        <button class="avatar-picker" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
+          <image wx:if="{{avatarPreview}}" class="avatar-picker__image" src="{{avatarPreview}}" mode="aspectFill"></image>
+          <view wx:else class="avatar-picker__image avatar-picker__placeholder">{{avatarText}}</view>
+          <text class="avatar-picker__text">选择微信头像</text>
+        </button>
+        <label class="form-field">
+          <text class="form-label">昵称</text>
+          <input class="form-input" type="nickname" maxlength="30" value="{{profileDraft.nickName}}" placeholder="填写微信昵称" data-field="nickName" bindinput="handleProfileInput" />
+        </label>
+      </view>
+
+      <view wx:else class="address-form">
+        <label class="form-field">
+          <text class="form-label">联系人</text>
+          <input class="form-input" maxlength="30" value="{{profileDraft.name}}" placeholder="填写姓名" data-field="name" bindinput="handleProfileInput" />
+        </label>
+        <label class="form-field">
+          <text class="form-label">手机号码</text>
+          <input class="form-input" type="number" maxlength="11" value="{{profileDraft.phone}}" placeholder="填写手机号码" data-field="phone" bindinput="handleProfileInput" />
+        </label>
+        <label class="form-field form-field--textarea">
+          <text class="form-label">详细地址</text>
+          <textarea class="form-textarea" maxlength="120" auto-height value="{{profileDraft.address}}" placeholder="填写小区、楼栋、门牌号" data-field="address" bindinput="handleProfileInput"></textarea>
+        </label>
+      </view>
+
+      <button class="editor-save" loading="{{isSaving}}" disabled="{{isSaving}}" bindtap="saveProfile">保存</button>
+    </view>
   </view>
 </view>

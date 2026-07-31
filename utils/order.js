@@ -4,6 +4,15 @@ const ORDER_STATUS_LABELS = {
   completed: '已完成',
   cancelled: '已取消'
 }
+const ORDER_TYPE_LABELS = {
+  physical: '实体商品订单',
+  service: '服务订单'
+}
+const PAYMENT_STATUS_LABELS = {
+  unpaid: '待付款',
+  paid: '已付款'
+}
+const MERCHANT_PHONE = '13872533145'
 
 const formatMoney = (value) => (Number(value) || 0).toFixed(2)
 
@@ -21,14 +30,25 @@ const formatOrderItem = (item = {}) => ({
   subtotalText: formatMoney(item.subtotal)
 })
 
-const formatOrder = (order = {}) => ({
-  ...order,
-  items: Array.isArray(order.items) ? order.items.map(formatOrderItem) : [],
-  statusLabel: ORDER_STATUS_LABELS[order.status] || '处理中',
-  totalAmountText: formatMoney(order.totalAmount),
-  createdAtText: formatOrderTime(order.createdAt),
-  fulfillmentLabel: order.fulfillmentType === 'delivery' ? '上门服务' : '到店办理'
-})
+const formatOrder = (order = {}) => {
+  const orderType = order.orderType || (order.fulfillmentType === 'delivery' ? 'service' : '')
+  const paymentStatus = order.paymentStatus === 'paid' ? 'paid' : 'unpaid'
+  return {
+    ...order,
+    orderType,
+    items: Array.isArray(order.items) ? order.items.map(formatOrderItem) : [],
+    statusLabel: ORDER_STATUS_LABELS[order.status] || '处理中',
+    paymentStatus,
+    paymentStatusLabel: PAYMENT_STATUS_LABELS[paymentStatus],
+    orderTypeLabel: ORDER_TYPE_LABELS[orderType] || '订单',
+    totalAmountText: formatMoney(order.totalAmount),
+    createdAtText: formatOrderTime(order.createdAt),
+    appointmentText: order.appointment && order.appointment.date && order.appointment.time
+      ? `${order.appointment.date} ${order.appointment.time}`
+      : '',
+    fulfillmentLabel: order.fulfillmentType === 'delivery' ? '上门服务' : '到店办理'
+  }
+}
 
 const callOrderService = (action, data = {}) => wx.cloud.callFunction({
   name: 'orderService',
@@ -45,6 +65,7 @@ const callOrderService = (action, data = {}) => wx.cloud.callFunction({
 
 module.exports = {
   callOrderService,
+  MERCHANT_PHONE,
   formatMoney,
   formatOrder,
   formatOrderItem,

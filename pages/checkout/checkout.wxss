@@ -37,8 +37,73 @@
 }
 
 .mode-control__button::after,
+.merchant-confirmation__button::after,
 .submit-button::after {
   border: 0;
+}
+
+.appointment-fields {
+  margin-top: 22rpx;
+  border-top: 1rpx solid #eaecf0;
+}
+
+.appointment-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 86rpx;
+  border-bottom: 1rpx solid #eaecf0;
+  font-size: 25rpx;
+}
+
+.appointment-field__label {
+  color: #344054;
+}
+
+.appointment-field__value {
+  color: #1677a7;
+  font-weight: 600;
+}
+
+.merchant-confirmation {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-top: 22rpx;
+  padding-top: 22rpx;
+  border-top: 1rpx solid #eaecf0;
+}
+
+.merchant-confirmation__content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.merchant-confirmation__title {
+  color: #344054;
+  font-size: 24rpx;
+}
+
+.merchant-confirmation__phone {
+  color: #1677a7;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.merchant-confirmation__button {
+  flex: 0 0 128rpx;
+  min-height: 64rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 1rpx solid #1677a7;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #1677a7;
+  font-size: 24rpx;
+  line-height: 62rpx;
 }
 
 .mode-control__button--active {
@@ -46,6 +111,43 @@
   background: #eef8fc;
   color: #1677a7;
   font-weight: 600;
+}
+
+.service-entry + .service-entry {
+  margin-top: 26rpx;
+  padding-top: 26rpx;
+  border-top: 1rpx solid #eaecf0;
+}
+
+.service-fulfillment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 18rpx;
+}
+
+.service-fulfillment__label {
+  flex: 0 0 auto;
+  color: #667085;
+  font-size: 23rpx;
+}
+
+.service-fulfillment__value {
+  color: #1677a7;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.mode-control--compact {
+  width: 360rpx;
+  gap: 10rpx;
+}
+
+.mode-control--compact .mode-control__button {
+  min-height: 60rpx;
+  font-size: 23rpx;
+  line-height: 58rpx;
 }
 
 .form-section {

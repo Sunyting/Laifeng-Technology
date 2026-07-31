@@ -1,15 +1,7 @@
 <view class="checkout-page">
   <block wx:if="{{pageStatus === 'success'}}">
-    <view wx:if="{{hasOnsiteItems}}" class="section">
-      <text class="section__title">上门维修办理方式</text>
-      <view class="mode-control">
-        <button class="mode-control__button {{onsiteFulfillmentType === 'store' ? 'mode-control__button--active' : ''}}" data-type="store" bindtap="selectFulfillment">到店办理</button>
-        <button class="mode-control__button {{onsiteFulfillmentType === 'delivery' ? 'mode-control__button--active' : ''}}" data-type="delivery" bindtap="selectFulfillment">上门服务</button>
-      </view>
-    </view>
-
     <view class="section form-section">
-      <text class="section__title">联系信息</text>
+      <text class="section__title">客户信息</text>
       <label class="form-row">
         <text class="form-row__label">联系人</text>
         <input class="form-row__input" value="{{contact.name}}" maxlength="30" placeholder="请填写姓名" data-field="name" bindinput="handleContactInput" />
@@ -18,20 +10,51 @@
         <text class="form-row__label">手机号</text>
         <input class="form-row__input" value="{{contact.phone}}" type="number" maxlength="11" placeholder="请填写手机号码" data-field="phone" bindinput="handleContactInput" />
       </label>
-      <label wx:if="{{onsiteFulfillmentType === 'delivery'}}" class="form-row form-row--multiline">
-        <text class="form-row__label">详细地址</text>
-        <textarea class="form-row__textarea" value="{{contact.address}}" maxlength="120" auto-height placeholder="街道、门牌号等" data-field="address" bindinput="handleContactInput"></textarea>
+      <label wx:if="{{hasDeliveryCapableItems}}" class="form-row form-row--multiline">
+        <text class="form-row__label">上门地址</text>
+        <textarea class="form-row__textarea" value="{{contact.address}}" maxlength="120" auto-height placeholder="预约上门时必填" data-field="address" bindinput="handleContactInput"></textarea>
       </label>
     </view>
 
-    <view wx:if="{{hasStandardItems}}" class="section">
-      <text class="section__title">到店办理商品</text>
-      <order-items items="{{standardItems}}"></order-items>
+    <view wx:if="{{hasServiceItems}}" class="section service-section">
+      <text class="section__title">服务项目</text>
+      <view wx:for="{{serviceItems}}" wx:key="key" class="service-entry">
+        <order-items items="{{item.displayItems}}"></order-items>
+        <view class="service-fulfillment">
+          <text class="service-fulfillment__label">办理方式</text>
+          <view wx:if="{{item.canChooseFulfillment}}" class="mode-control mode-control--compact">
+            <button class="mode-control__button {{item.fulfillmentType === 'store' ? 'mode-control__button--active' : ''}}" data-key="{{item.key}}" data-type="store" bindtap="selectFulfillment">到店办理</button>
+            <button class="mode-control__button {{item.fulfillmentType === 'delivery' ? 'mode-control__button--active' : ''}}" data-key="{{item.key}}" data-type="delivery" bindtap="selectFulfillment">上门服务</button>
+          </view>
+          <text wx:else class="service-fulfillment__value">{{item.fulfillmentType === 'delivery' ? '上门服务' : '到店办理'}}</text>
+        </view>
+      </view>
+      <view wx:if="{{hasAppointmentItems}}" class="appointment-fields">
+        <picker mode="date" value="{{appointmentDate}}" start="{{minAppointmentDate}}" end="{{maxAppointmentDate}}" bindchange="handleAppointmentDateChange">
+          <view class="appointment-field">
+            <text class="appointment-field__label">上门日期</text>
+            <text class="appointment-field__value">{{appointmentDate}}</text>
+          </view>
+        </picker>
+        <picker mode="time" value="{{appointmentTime}}" bindchange="handleAppointmentTimeChange">
+          <view class="appointment-field">
+            <text class="appointment-field__label">上门时间</text>
+            <text class="appointment-field__value">{{appointmentTime}}</text>
+          </view>
+        </picker>
+      </view>
+      <view wx:if="{{hasDeliveryItems}}" class="merchant-confirmation">
+        <view class="merchant-confirmation__content">
+          <text class="merchant-confirmation__title">预约后请电话确认</text>
+          <text class="merchant-confirmation__phone">{{merchantPhone}}</text>
+        </view>
+        <button class="merchant-confirmation__button" bindtap="callMerchant">拨打</button>
+      </view>
     </view>
 
-    <view wx:if="{{hasOnsiteItems}}" class="section">
-      <text class="section__title">上门维修商品</text>
-      <order-items items="{{onsiteItems}}"></order-items>
+    <view wx:if="{{hasPhysicalItems}}" class="section">
+      <text class="section__title">实体商品</text>
+      <order-items items="{{physicalItems}}"></order-items>
     </view>
 
     <view class="section form-section">
@@ -47,9 +70,9 @@
         <text class="submit-total__label">{{amountLabel}}</text>
         <text class="submit-total__price">¥{{totalAmountText}}</text>
       </view>
-      <button class="submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitOrder">{{orderCount > 1 ? '提交2个订单' : '提交订单'}}</button>
+      <button class="submit-button" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitOrder">{{submitButtonText}}</button>
     </view>
   </block>
 
-  <status-view wx:else status="{{pageStatus}}" message="{{pageMessage}}" action-text="{{pageStatus === 'empty' ? '去逛逛' : ''}}" bind:action="goShopping"></status-view>
+  <status-view wx:else status="{{pageStatus}}" message="{{pageMessage}}" action-text="{{pageStatus === 'empty' ? '去逛逛' : (pageStatus === 'error' ? '重新加载' : '')}}" bind:action="handleStatusAction"></status-view>
 </view>

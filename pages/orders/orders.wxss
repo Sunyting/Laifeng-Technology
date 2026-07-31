@@ -4,6 +4,42 @@
   box-sizing: border-box;
 }
 
+.order-filters {
+  width: 100%;
+  margin-bottom: 20rpx;
+  white-space: nowrap;
+}
+
+.order-filters__inner {
+  display: inline-flex;
+  min-width: 100%;
+  gap: 12rpx;
+}
+
+.order-filter {
+  min-width: 132rpx;
+  height: 68rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  border: 1rpx solid #d0d5dd;
+  border-radius: 6rpx;
+  background: #ffffff;
+  color: #475467;
+  font-size: 24rpx;
+  line-height: 66rpx;
+}
+
+.order-filter::after {
+  border: 0;
+}
+
+.order-filter--active {
+  border-color: #1677a7;
+  background: #1677a7;
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .order-list {
   display: flex;
   flex-direction: column;
@@ -32,7 +68,8 @@
 }
 
 .order-card__number,
-.order-card__time {
+.order-card__time,
+.order-card__type {
   display: block;
 }
 
@@ -48,10 +85,49 @@
   font-size: 20rpx;
 }
 
+.order-card__type {
+  margin-top: 6rpx;
+  color: #667085;
+  font-size: 21rpx;
+}
+
 .order-card__status {
   flex: 0 0 auto;
   color: #1677a7;
   font-size: 24rpx;
+  font-weight: 600;
+}
+
+.order-card__statuses {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
+}
+
+.order-card__payment {
+  padding: 4rpx 10rpx;
+  border-radius: 4rpx;
+  font-size: 20rpx;
+}
+
+.order-card__payment--unpaid {
+  background: #fff4ed;
+  color: #c4320a;
+}
+
+.order-card__payment--paid {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.order-card__appointment {
+  margin: 0 -22rpx;
+  padding: 16rpx 22rpx;
+  background: #eef8fc;
+  color: #1677a7;
+  font-size: 23rpx;
   font-weight: 600;
 }
 

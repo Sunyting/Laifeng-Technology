@@ -4,6 +4,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
 const command = db.command
+const MAX_APPOINTMENT_DAYS = 90
 
 class BusinessError extends Error {
   constructor(code, message) {
@@ -28,12 +29,13 @@ const validateItems = (rawItems) => {
     const productId = normalizeText(item.productId, 64)
     const skuId = normalizeText(item.skuId, 80)
     const quantity = Number(item.quantity)
+    const fulfillmentType = ['store', 'delivery'].includes(item.fulfillmentType) ? item.fulfillmentType : ''
     const key = `${productId}::${skuId}`
     if (!productId || !skuId || !Number.isInteger(quantity) || quantity < 1 || quantity > 99 || seenKeys.has(key)) {
       throw new BusinessError('INVALID_ITEMS', '商品信息已失效，请返回购物车重新选择')
     }
     seenKeys.add(key)
-    return { productId, skuId, quantity }
+    return { productId, skuId, quantity, fulfillmentType }
   })
 }
 
@@ -46,6 +48,31 @@ const createOrderNo = () => {
   const pad = (value) => String(value).padStart(2, '0')
   const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   return `LFT${timestamp}${Math.floor(1000 + Math.random() * 9000)}`
+}
+
+const validateAppointment = (rawAppointment) => {
+  const date = normalizeText(rawAppointment && rawAppointment.date, 10)
+  const time = normalizeText(rawAppointment && rawAppointment.time, 5)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+    throw new BusinessError('INVALID_APPOINTMENT', '请选择上门日期和时间')
+  }
+
+  const [year, month, day] = date.split('-').map(Number)
+  const calendarDate = new Date(Date.UTC(year, month - 1, day))
+  if (calendarDate.getUTCFullYear() !== year || calendarDate.getUTCMonth() !== month - 1 || calendarDate.getUTCDate() !== day) {
+    throw new BusinessError('INVALID_APPOINTMENT', '请选择正确的上门日期')
+  }
+
+  const scheduledAt = Date.parse(`${date}T${time}:00+08:00`)
+  const maxScheduledAt = Date.now() + MAX_APPOINTMENT_DAYS * 24 * 60 * 60 * 1000
+  if (!Number.isFinite(scheduledAt) || scheduledAt <= Date.now()) {
+    throw new BusinessError('INVALID_APPOINTMENT', '请选择晚于当前时间的上门时间')
+  }
+  if (scheduledAt > maxScheduledAt) {
+    throw new BusinessError('INVALID_APPOINTMENT', `仅支持预约未来${MAX_APPOINTMENT_DAYS}天内的上门服务`)
+  }
+
+  return { date, time, scheduledAt }
 }
 
 const sanitizeOrder = (order = {}) => {
@@ -64,48 +91,74 @@ const validateCreatePayload = (event) => {
   if (contact.name.length < 2) throw new BusinessError('INVALID_CONTACT', '请填写联系人姓名')
   if (!/^1\d{10}$/.test(contact.phone)) throw new BusinessError('INVALID_CONTACT', '请填写正确的手机号码')
 
-  const onsiteFulfillmentType = (event.onsiteFulfillmentType || event.fulfillmentType) === 'delivery'
+  const legacyFulfillmentType = (event.onsiteFulfillmentType || event.fulfillmentType) === 'delivery'
     ? 'delivery'
     : 'store'
-  if (onsiteFulfillmentType === 'delivery' && contact.address.length < 5) {
-    throw new BusinessError('INVALID_CONTACT', '请填写详细地址')
-  }
 
   return {
     items,
     contact,
-    onsiteFulfillmentType,
+    legacyFulfillmentType,
+    rawAppointment: event.appointment,
     note: normalizeText(event.note, 200)
   }
 }
 
-const getOnsiteCategoryId = async () => {
-  const result = await db.collection('shop_firstType')
-    .where({ name: '上门维修' })
-    .limit(1)
-    .get()
-  return result.data && result.data[0] ? result.data[0]._id : ''
+const getProductBusinessConfig = (product) => {
+  const itemType = product && product.itemType
+  const fulfillmentTypes = [...new Set(Array.isArray(product && product.fulfillmentTypes)
+    ? product.fulfillmentTypes.filter((type) => type === 'store' || type === 'delivery')
+    : [])]
+  const inventoryType = product && product.inventoryType
+  if (!['physical', 'service'].includes(itemType) || !fulfillmentTypes.length || !['finite', 'unlimited'].includes(inventoryType)) {
+    throw new BusinessError('INVALID_PRODUCT_CONFIG', `${product && product.name ? product.name : '商品'}的业务配置不完整，请联系门店`)
+  }
+  if (itemType === 'physical' && (fulfillmentTypes.length !== 1 || fulfillmentTypes[0] !== 'store' || inventoryType !== 'finite')) {
+    throw new BusinessError('INVALID_PRODUCT_CONFIG', `${product.name}的实体商品配置异常，请联系门店`)
+  }
+  return {
+    itemType,
+    fulfillmentTypes,
+    requiresAppointment: Boolean(product.requiresAppointment),
+    inventoryType
+  }
+}
+
+const buildOrderGroups = (itemSnapshots) => {
+  const orderGroupMap = itemSnapshots.reduce((groups, snapshot) => {
+    const key = `${snapshot.itemType}:${snapshot.fulfillmentType}`
+    if (!groups[key]) {
+      groups[key] = {
+        snapshots: [],
+        orderType: snapshot.itemType,
+        fulfillmentType: snapshot.fulfillmentType
+      }
+    }
+    groups[key].snapshots.push(snapshot)
+    return groups
+  }, {})
+  return Object.values(orderGroupMap)
 }
 
 const getCheckoutOptions = async (event) => {
   const items = validateItems(event.items)
   const productIds = [...new Set(items.map((item) => item.productId))]
-  const [onsiteCategoryId, products] = await Promise.all([
-    getOnsiteCategoryId(),
-    Promise.all(productIds.map(async (productId) => {
-      const result = await db.collection('goods').doc(productId).get()
-      return result.data
-    }))
-  ])
-  const onsiteProductIds = products
-    .filter((product) => product && product.status === '1' && product.categoryId === onsiteCategoryId)
-    .map((product) => product._id)
-  return success({ onsiteProductIds })
+  const products = await Promise.all(productIds.map(async (productId) => {
+    const result = await db.collection('goods').doc(productId).get()
+    return result.data
+  }))
+  const itemOptions = products.map((product) => {
+    if (!product || product.status !== '1') throw new BusinessError('PRODUCT_UNAVAILABLE', '部分商品已下架，请返回购物车重新选择')
+    return { productId: product._id, ...getProductBusinessConfig(product) }
+  })
+  const onsiteProductIds = itemOptions
+    .filter((option) => option.fulfillmentTypes.includes('delivery'))
+    .map((option) => option.productId)
+  return success({ itemOptions, onsiteProductIds })
 }
 
 const createOrders = async (event, openid, splitOrders) => {
   const payload = validateCreatePayload(event)
-  const onsiteCategoryId = await getOnsiteCategoryId()
   const groupedItems = payload.items.reduce((groups, item) => {
     if (!groups[item.productId]) groups[item.productId] = []
     groups[item.productId].push(item)
@@ -121,7 +174,7 @@ const createOrders = async (event, openid, splitOrders) => {
       if (!product || product.status !== '1') {
         throw new BusinessError('PRODUCT_UNAVAILABLE', '部分商品已下架，请返回购物车重新选择')
       }
-      const isOnsiteProduct = Boolean(onsiteCategoryId) && product.categoryId === onsiteCategoryId
+      const productConfig = getProductBusinessConfig(product)
 
       const skuList = Array.isArray(product.SKUlist) ? product.SKUlist : []
       const stockUpdates = {}
@@ -133,7 +186,7 @@ const createOrders = async (event, openid, splitOrders) => {
         }
         const stock = Number(sku.stock)
         const unitPrice = Number(sku.prices)
-        if (!Number.isFinite(stock) || stock < selectedItem.quantity) {
+        if (productConfig.inventoryType === 'finite' && (!Number.isFinite(stock) || stock < selectedItem.quantity)) {
           throw new BusinessError('INSUFFICIENT_STOCK', `${product.name}库存不足`)
         }
         if (!Number.isFinite(unitPrice) || unitPrice < 0) {
@@ -142,9 +195,19 @@ const createOrders = async (event, openid, splitOrders) => {
 
         const unitPriceCents = Math.round(unitPrice * 100)
         const subtotalCents = unitPriceCents * selectedItem.quantity
-        stockUpdates[`SKUlist.${skuIndex}.stock`] = command.inc(-selectedItem.quantity)
+        const requestedFulfillmentType = selectedItem.fulfillmentType || (productConfig.fulfillmentTypes.length === 1
+          ? productConfig.fulfillmentTypes[0]
+          : payload.legacyFulfillmentType)
+        if (!productConfig.fulfillmentTypes.includes(requestedFulfillmentType)) {
+          throw new BusinessError('INVALID_FULFILLMENT', `${product.name}不支持所选办理方式`)
+        }
+        if (productConfig.inventoryType === 'finite') {
+          stockUpdates[`SKUlist.${skuIndex}.stock`] = command.inc(-selectedItem.quantity)
+        }
         itemSnapshots.push({
-          isOnsiteProduct,
+          itemType: productConfig.itemType,
+          fulfillmentType: requestedFulfillmentType,
+          requiresAppointment: productConfig.requiresAppointment,
           item: {
             key: `${productId}::${sku.id}`,
             productId,
@@ -156,6 +219,8 @@ const createOrders = async (event, openid, splitOrders) => {
             unitPrice: unitPriceCents / 100,
             subtotal: subtotalCents / 100,
             quantity: selectedItem.quantity,
+            itemType: productConfig.itemType,
+            fulfillmentType: requestedFulfillmentType,
             priceType: sku.priceType || 'fixed',
             unit: sku.unit || '',
             priceRemark: sku.priceRemark || ''
@@ -163,23 +228,23 @@ const createOrders = async (event, openid, splitOrders) => {
         })
       })
 
-      await transaction.collection('goods').doc(productId).update({ data: stockUpdates })
+      if (Object.keys(stockUpdates).length) {
+        await transaction.collection('goods').doc(productId).update({ data: stockUpdates })
+      }
     }
 
-    const onsiteItems = itemSnapshots.filter((snapshot) => snapshot.isOnsiteProduct)
-    const standardItems = itemSnapshots.filter((snapshot) => !snapshot.isOnsiteProduct)
-    if (!splitOrders && payload.onsiteFulfillmentType === 'delivery' && standardItems.length) {
-      throw new BusinessError('INVALID_FULFILLMENT', '仅上门维修类商品支持上门服务')
+    const hasDeliveryItems = itemSnapshots.some((snapshot) => snapshot.fulfillmentType === 'delivery')
+    if (hasDeliveryItems && payload.contact.address.length < 5) {
+      throw new BusinessError('INVALID_CONTACT', '请填写详细地址')
     }
-    const orderGroups = splitOrders
-      ? [
-          { snapshots: standardItems, fulfillmentType: 'store' },
-          { snapshots: onsiteItems, fulfillmentType: payload.onsiteFulfillmentType }
-        ].filter((group) => group.snapshots.length)
-      : [{
-          snapshots: itemSnapshots,
-          fulfillmentType: payload.onsiteFulfillmentType === 'delivery' ? 'delivery' : 'store'
-        }]
+    const needsAppointment = itemSnapshots.some((snapshot) => {
+      return snapshot.fulfillmentType === 'delivery' && snapshot.requiresAppointment
+    })
+    const appointment = needsAppointment ? validateAppointment(payload.rawAppointment) : null
+    const orderGroups = buildOrderGroups(itemSnapshots)
+    if (!splitOrders && orderGroups.length > 1) {
+      throw new BusinessError('INVALID_ITEMS', '混合商品需要拆分提交，请返回购物车重新结算')
+    }
 
     const now = Date.now()
     const usedOrderNos = new Set()
@@ -202,19 +267,27 @@ const createOrders = async (event, openid, splitOrders) => {
         totalQuantity,
         totalAmount: totalAmountCents / 100,
         amountType,
+        orderType: group.orderType,
         fulfillmentType: group.fulfillmentType,
         contact: {
           ...payload.contact,
           address: group.fulfillmentType === 'delivery' ? payload.contact.address : ''
         },
+        appointment: group.fulfillmentType === 'delivery' ? appointment : null,
         note: payload.note,
+        paymentStatus: 'unpaid',
         status: 'pending_confirmation',
         statusHistory: [{ status: 'pending_confirmation', createdAt: now }],
         createdAt: now,
         updatedAt: now
       }
       await transaction.collection('orders').doc(orderNo).set({ data: order })
-      createdOrders.push({ orderId: orderNo, orderNo, fulfillmentType: group.fulfillmentType })
+      createdOrders.push({
+        orderId: orderNo,
+        orderNo,
+        orderType: group.orderType,
+        fulfillmentType: group.fulfillmentType
+      })
     }
 
     const profileRef = transaction.collection('users').doc(openid)
@@ -256,6 +329,8 @@ const getProfile = async (openid) => {
     const result = await db.collection('users').doc(openid).get()
     const profile = result.data || {}
     return success({
+      nickName: profile.nickName || '',
+      avatarUrl: profile.avatarUrl || '',
       name: profile.name || '',
       phone: profile.phone || '',
       address: profile.address || ''
@@ -263,6 +338,37 @@ const getProfile = async (openid) => {
   } catch (err) {
     return success(null)
   }
+}
+
+const updateProfile = async (event, openid) => {
+  const profile = {
+    nickName: normalizeText(event.profile && event.profile.nickName, 30),
+    avatarUrl: normalizeText(event.profile && event.profile.avatarUrl, 500),
+    name: normalizeText(event.profile && event.profile.name, 30),
+    phone: normalizeText(event.profile && event.profile.phone, 20),
+    address: normalizeText(event.profile && event.profile.address, 120)
+  }
+  if (profile.phone && !/^1\d{10}$/.test(profile.phone)) {
+    throw new BusinessError('INVALID_PROFILE', '请填写正确的手机号码')
+  }
+  if (profile.address && profile.address.length < 5) {
+    throw new BusinessError('INVALID_PROFILE', '请填写详细地址')
+  }
+  if (profile.avatarUrl && !profile.avatarUrl.startsWith('cloud://')) {
+    throw new BusinessError('INVALID_PROFILE', '头像地址无效，请重新选择')
+  }
+
+  const now = Date.now()
+  const profileRef = db.collection('users').doc(openid)
+  try {
+    await profileRef.get()
+    await profileRef.update({ data: { ...profile, updatedAt: now } })
+  } catch (err) {
+    await profileRef.set({
+      data: { ...profile, createdAt: now, updatedAt: now }
+    })
+  }
+  return success(profile)
 }
 
 const listOrders = async (openid) => {
@@ -296,6 +402,8 @@ exports.main = async (event = {}) => {
         return await createOrders(event, OPENID, true)
       case 'getProfile':
         return await getProfile(OPENID)
+      case 'updateProfile':
+        return await updateProfile(event, OPENID)
       case 'getCheckoutOptions':
         return await getCheckoutOptions(event)
       case 'listOrders':

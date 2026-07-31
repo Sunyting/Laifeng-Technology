@@ -1,8 +1,9 @@
-const { callOrderService, formatOrder } = require('../../utils/order')
+const { callOrderService, formatOrder, MERCHANT_PHONE } = require('../../utils/order')
 
 Page({
   data: {
     order: null,
+    merchantPhone: MERCHANT_PHONE,
     pageStatus: 'loading',
     pageMessage: ''
   },
@@ -25,5 +26,8 @@ Page({
   },
   goToOrders() {
     wx.redirectTo({ url: '/pages/orders/orders' })
+  },
+  callMerchant() {
+    wx.makePhoneCall({ phoneNumber: MERCHANT_PHONE })
   }
 })

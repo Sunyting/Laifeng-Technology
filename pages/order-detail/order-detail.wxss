@@ -56,12 +56,74 @@
   word-break: break-all;
 }
 
+.info-row__value--accent {
+  color: #1677a7;
+  font-weight: 600;
+}
+
+.info-row__value--payment-unpaid {
+  color: #c4320a;
+  font-weight: 600;
+}
+
+.info-row__value--payment-paid {
+  color: #027a48;
+  font-weight: 600;
+}
+
 .section-title {
   display: block;
   margin-bottom: 20rpx;
   color: #101828;
   font-size: 29rpx;
   font-weight: 600;
+}
+
+.merchant-section {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.merchant-section__content {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.merchant-section__title {
+  margin-bottom: 8rpx;
+}
+
+.merchant-section__hint {
+  color: #667085;
+  font-size: 23rpx;
+  line-height: 1.5;
+}
+
+.merchant-section__phone {
+  margin-top: 8rpx;
+  color: #1677a7;
+  font-size: 27rpx;
+  font-weight: 600;
+}
+
+.merchant-section__button {
+  flex: 0 0 128rpx;
+  min-height: 68rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 1rpx solid #1677a7;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #1677a7;
+  font-size: 24rpx;
+  line-height: 66rpx;
+}
+
+.merchant-section__button::after {
+  border: 0;
 }
 
 .contact-line {

@@ -1,14 +1,31 @@
 <view class="orders-page">
+  <scroll-view class="order-filters" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="order-filters__inner">
+      <button
+        wx:for="{{filters}}"
+        wx:key="value"
+        class="order-filter {{selectedFilter === item.value ? 'order-filter--active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="selectFilter"
+      >{{item.label}}</button>
+    </view>
+  </scroll-view>
+
   <view wx:if="{{pageStatus === 'success'}}" class="order-list">
     <view wx:for="{{orders}}" wx:key="_id" class="order-card" data-id="{{item._id}}" bindtap="openOrder">
       <view class="order-card__header">
         <view>
           <text class="order-card__number">订单 {{item.orderNo}}</text>
           <text class="order-card__time">{{item.createdAtText}}</text>
+          <text class="order-card__type">{{item.orderTypeLabel}} · {{item.fulfillmentLabel}}</text>
         </view>
-        <text class="order-card__status">{{item.statusLabel}}</text>
+        <view class="order-card__statuses">
+          <text class="order-card__payment order-card__payment--{{item.paymentStatus}}">{{item.paymentStatusLabel}}</text>
+          <text class="order-card__status">{{item.statusLabel}}</text>
+        </view>
       </view>
       <order-items items="{{item.items}}"></order-items>
+      <view wx:if="{{item.appointmentText}}" class="order-card__appointment">预约上门：{{item.appointmentText}}</view>
       <view class="order-card__footer">
         <text class="order-card__count">共 {{item.totalQuantity}} 件</text>
         <view class="order-card__amount">
@@ -23,7 +40,7 @@
     wx:else
     status="{{pageStatus}}"
     message="{{pageMessage}}"
-    action-text="{{pageStatus === 'error' ? '重新加载' : (pageStatus === 'empty' ? '去逛逛' : '')}}"
+    action-text="{{pageStatus === 'error' ? '重新加载' : (pageStatus === 'empty' ? (allOrders.length ? '查看全部' : '去逛逛') : '')}}"
     bind:action="handleStatusAction"
   ></status-view>
 </view>

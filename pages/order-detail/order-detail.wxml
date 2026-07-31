@@ -2,7 +2,7 @@
   <block wx:if="{{pageStatus === 'success'}}">
     <view class="status-section">
       <text class="status-section__status">{{order.statusLabel}}</text>
-      <text class="status-section__hint">订单已提交，门店确认后会与您联系</text>
+      <text class="status-section__hint">{{order.fulfillmentType === 'delivery' ? '预约已提交，请致电商家确认上门时间' : '订单已提交，门店确认后会与您联系'}}</text>
     </view>
 
     <view class="detail-section info-list">
@@ -15,9 +15,30 @@
         <text class="info-row__value">{{order.createdAtText}}</text>
       </view>
       <view class="info-row">
+        <text class="info-row__label">订单类型</text>
+        <text class="info-row__value">{{order.orderTypeLabel}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-row__label">付款状态</text>
+        <text class="info-row__value info-row__value--payment-{{order.paymentStatus}}">{{order.paymentStatusLabel}}</text>
+      </view>
+      <view class="info-row">
         <text class="info-row__label">办理方式</text>
         <text class="info-row__value">{{order.fulfillmentLabel}}</text>
       </view>
+      <view wx:if="{{order.appointmentText}}" class="info-row">
+        <text class="info-row__label">预约时间</text>
+        <text class="info-row__value info-row__value--accent">{{order.appointmentText}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{order.fulfillmentType === 'delivery'}}" class="detail-section merchant-section">
+      <view class="merchant-section__content">
+        <text class="section-title merchant-section__title">电话确认预约</text>
+        <text class="merchant-section__hint">预约后请联系商家确认上门时间</text>
+        <text class="merchant-section__phone">{{merchantPhone}}</text>
+      </view>
+      <button class="merchant-section__button" bindtap="callMerchant">拨打</button>
     </view>
 
     <view class="detail-section">

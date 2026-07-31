@@ -81,6 +81,10 @@ top-banner（当前独立，无外键关系）
 | `sort` | `number` | 是 | 同一分类内按升序展示 |
 | `status` | `string` | 是 | `"1"` 表示当前可用 |
 | `type` | `string` | 是 | `"1"` 表示单 SKU，`"2"` 表示多 SKU |
+| `itemType` | `"physical" \| "service"` | 是 | 实体商品或服务项目；不能通过一级分类名称推断 |
+| `fulfillmentTypes` | `("store" \| "delivery")[]` | 是 | 商品支持的办理方式；`delivery` 在当前业务中表示上门服务 |
+| `requiresAppointment` | `boolean` | 是 | 选择上门服务时是否必须填写预约时间 |
+| `inventoryType` | `"finite" \| "unlimited"` | 是 | 有限库存或不限库存；不限库存服务下单时不扣减 SKU 库存 |
 | `specs` | `object` | 否 | 商品规格维度定义 |
 | `SKUlist` | `Sku[]` | 是 | 当前小程序使用的 SKU 和价格来源 |
 | `skus` | `LegacySku[]` | 否 | 历史兼容字段，当前小程序不读取，不应继续作为新数据源 |
@@ -106,7 +110,7 @@ specs
 | `image` | `string` | 否 | SKU 图片云文件 ID |
 | `prices` | `number` | 是 | 当前销售价格；字段名保持现状 |
 | `originalPrice` | `number` | 否 | 划线价 |
-| `specs` | `Record<string, string>` | 是 | 该 SKU 对应的规格值；现有部分记录为空对象 |
+| `specs` | `Record<string, string>` | 是 | 该 SKU 对应的完整规格值；字段名必须与 `specs.levels[].name` 一致，字段值必须存在于对应 `values` 中 |
 | `status` | `string` | 是 | SKU 状态，当前已出现 `"1"` |
 | `stock` | `number` | 是 | 可售库存；服务类当前以 `999` 表示充足库存 |
 | `priceType` | `"fixed" \| "starting"` | 是 | 固定价格或起始价格 |
@@ -119,7 +123,7 @@ specs
 
 ### 已部署商品数据摘要
 
-全部规划数据已于 2026-07-30 同步到 `goods`。当前 37 个商品均已上架并配置商品主图。
+全部规划数据已于 2026-07-30 同步到 `goods`。当前 37 个商品均已上架并配置商品主图；77 个 SKU 的 `specs` 已于 2026-07-31 补齐，所有规格选项均可匹配到对应 SKU。37 个商品的业务类型、办理方式、预约要求和库存类型也已于 2026-07-31 完成迁移。
 
 | 一级分类 | 商品数 | SKU 数量 | 已配置图片 | 待补图片 |
 | --- | ---: | ---: | ---: | ---: |
@@ -133,6 +137,19 @@ specs
 | 上门维修 | 2 | 3 | 2 | 0 |
 | 数码配件 | 5 | 9 | 5 | 0 |
 | **总计** | **37** | **77** | **37** | **0** |
+
+### 商品类型与办理方式
+
+一级分类只用于商品导航，不能作为实体商品、服务项目或上门能力的判断依据。结算页和 `orderService` 必须读取商品业务字段。
+
+| 商品范围 | `itemType` | `fulfillmentTypes` | `requiresAppointment` | `inventoryType` |
+| --- | --- | --- | --- | --- |
+| 键盘、鼠标、充电器、耳机等实体商品 | `physical` | `["store"]` | `false` | `finite` |
+| 换屏、换电池、电脑维修、打印等到店服务 | `service` | `["store"]` | `false` | `unlimited` |
+| 大件电器维修 | `service` | `["store", "delivery"]` | `true` | `unlimited` |
+| 网络布线、监控安装、电脑上门维修、家电上门维修 | `service` | `["delivery"]` | `true` | `unlimited` |
+
+`上门维修`一级分类下的商品固定仅支持 `delivery`，结算页只显示“上门服务”，不提供“到店办理”选项。
 
 ### 当前索引
 
@@ -166,14 +183,16 @@ specs
 
 ## 六、`users` 用户集合
 
-`users` 只保存结算时使用的最近一次联系资料，由 `orderService` 云函数按当前用户 OpenID 读写，客户端不能直接访问。
+`users` 保存微信展示资料和结算时使用的默认联系资料，由 `orderService` 云函数按当前用户 OpenID 读写，客户端不能直接访问。微信头像和昵称必须由用户在个人中心主动选择或填写，不能在小程序启动时静默获取。
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `_id` | `string` | 是 | 当前微信用户 OpenID |
-| `name` | `string` | 是 | 联系人姓名，最多 30 个字符 |
-| `phone` | `string` | 是 | 联系手机号码 |
-| `address` | `string` | 否 | 最近一次送货或上门地址，最多 120 个字符 |
+| `nickName` | `string` | 否 | 用户主动填写的微信昵称，最多 30 个字符 |
+| `avatarUrl` | `string` | 否 | 用户主动选择并上传到当前云环境的头像文件 ID |
+| `name` | `string` | 否 | 默认上门联系人姓名，最多 30 个字符 |
+| `phone` | `string` | 否 | 默认上门联系手机号码 |
+| `address` | `string` | 否 | 默认送货或上门地址，最多 120 个字符 |
 | `createdAt` | `number` | 是 | 首次保存时间，Unix 毫秒时间戳 |
 | `updatedAt` | `number` | 是 | 最后更新时间，Unix 毫秒时间戳 |
 
@@ -199,9 +218,12 @@ specs
 | `totalQuantity` | `number` | 是 | 商品总件数 |
 | `totalAmount` | `number` | 是 | 云端按 SKU 单价计算的金额 |
 | `amountType` | `"fixed" \| "estimated"` | 是 | 固定金额或预估金额 |
-| `fulfillmentType` | `"store" \| "delivery"` | 是 | 到店办理或上门服务；只有“上门维修”分类商品形成的订单才能使用 `delivery` |
+| `orderType` | `"physical" \| "service"` | 是 | 实体商品订单或服务订单 |
+| `fulfillmentType` | `"store" \| "delivery"` | 是 | 到店办理或上门服务；必须同时被订单内所有商品的 `fulfillmentTypes` 允许 |
 | `contact` | `object` | 是 | 联系人姓名、电话和地址快照；到店订单的地址为空字符串 |
+| `appointment` | `Appointment \| null` | 是 | 上门预约时间；仅 `delivery` 订单保存预约对象，到店订单固定为 `null` |
 | `note` | `string` | 否 | 用户订单备注，最多 200 个字符 |
+| `paymentStatus` | `"unpaid" \| "paid"` | 是 | 付款状态，新订单初始为 `unpaid`；与业务订单状态相互独立 |
 | `status` | `string` | 是 | 当前订单状态，初始为 `pending_confirmation` |
 | `statusHistory` | `OrderStatus[]` | 是 | 订单状态变更记录 |
 | `createdAt` | `number` | 是 | 下单时间，Unix 毫秒时间戳 |
@@ -221,11 +243,25 @@ specs
 | `unitPrice` | `number` | 是 | 云端确认的 SKU 单价 |
 | `subtotal` | `number` | 是 | 单价乘数量的小计 |
 | `quantity` | `number` | 是 | 购买数量，范围 1 至 99 |
+| `itemType` | `"physical" \| "service"` | 是 | 下单时的商品类型快照 |
+| `fulfillmentType` | `"store" \| "delivery"` | 是 | 该订单项下单时选择的办理方式 |
 | `priceType` | `string` | 是 | 下单时计价类型快照 |
 | `unit` | `string` | 否 | 下单时计价单位快照 |
 | `priceRemark` | `string` | 否 | 下单时价格说明快照 |
 
+### `Appointment` 预约结构
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `date` | `string` | 是 | 顾客选择的上门日期，格式为 `YYYY-MM-DD` |
+| `time` | `string` | 是 | 顾客选择的上门时间，格式为 `HH:mm` |
+| `scheduledAt` | `number` | 是 | 按北京时间换算的 Unix 毫秒时间戳，用于服务端校验和后续排序 |
+
+上门预约仅支持未来 90 天。订单提交后，顾客需拨打商家电话 `13872533145` 确认具体上门时间。
+
 当前订单状态：`pending_confirmation`（待商家确认）、`confirmed`（已确认）、`completed`（已完成）、`cancelled`（已取消）。当前版本只由小程序创建待确认订单，后续状态由管理端维护。
+
+当前付款状态：`unpaid`（待付款）、`paid`（已付款）。当前版本尚未接入微信支付，新订单统一写入 `unpaid`，`paid` 由后续支付流程或管理端确认后维护。历史订单缺少该字段时，小程序兼容显示为“待付款”。
 
 ### 当前索引
 
@@ -245,9 +281,9 @@ specs
 | `users` | `ADMINONLY` | 禁止 | 禁止 |
 | `orders` | `ADMINONLY` | 禁止 | 禁止 |
 
-`orderService` 云函数使用 Node.js 20 和 `wx-server-sdk@4.0.2`，只允许已登录的非匿名用户调用。它负责保存联系资料、创建订单、扣减库存以及按当前用户查询订单，客户端不直接读写 `users` 和 `orders`。
+`orderService` 云函数使用 Node.js 20 和 `wx-server-sdk@4.0.2`，只允许已登录的非匿名用户调用。它负责保存微信展示资料和默认联系资料、创建订单、扣减库存以及按当前用户查询订单，客户端不直接读写 `users` 和 `orders`。
 
-混合购物车结算时，`orderService` 在同一事务中按商品分类自动拆单：非“上门维修”商品形成到店订单，“上门维修”商品形成另一条到店或上门订单。任一商品校验或库存扣减失败时，全部订单一起回滚。
+混合购物车结算时，`orderService` 在同一事务中按商品业务字段自动分组，最多形成实体商品、到店服务和上门服务 3 个订单。每个服务 SKU 可以分别选择办理方式，服务端会重新读取商品允许的 `fulfillmentTypes`，不能由客户端绕过。预约时间只写入需要预约的上门服务订单；实体商品和到店服务订单的 `appointment` 固定为 `null`。`finite` 商品在事务内扣减库存，`unlimited` 服务不扣减库存。任一商品校验或库存扣减失败时，全部订单一起回滚。
 
 ## 九、结构同步规则
 
@@ -433,12 +469,12 @@ specs
 | 一级分类 | 商品数 | SKU 总数 | 实物/服务 |
 |----------|--------|----------|-----------|
 | 手机相关 | 6 | 13 | 3实物+3服务 |
-| 电脑相关 | 8 | 17 | 5实物+3服务 |
+| 电脑相关 | 8 | 17 | 4实物+4服务 |
 | 办公打印及耗材 | 4 | 12 | 1实物+3服务 |
 | 各类家电维修 | 2 | 2 | 0实物+2服务 |
 | 图文视频 | 2 | 2 | 0实物+2服务 |
 | 网络相关 | 5 | 12 | 4实物+1服务 |
-| 监控安防 | 3 | 7 | 1实物+2服务 |
+| 监控安防 | 3 | 7 | 2实物+1服务 |
 | 上门维修 | 2 | 3 | 0实物+2服务 |
 | 数码配件 | 5 | 9 | 5实物+0服务 |
 | **总计** | **37** | **77** | **实物19 + 服务18** |
@@ -449,7 +485,7 @@ specs
 
 | 类型 | 库存值 | 适用商品 |
 |------|--------|----------|
-| 实物（有具体数量） | 3~120 | 充电器、数据线、键盘、鼠标、耗材等 |
-| 服务（无限库存） | 999 | 维修、清灰、装系统、打印、证件照等 |
+| `finite` 实体商品 | 3~120 | 充电器、数据线、键盘、鼠标、耗材等；下单时扣减库存 |
+| `unlimited` 服务 | 当前兼容值 `999` | 维修、清灰、装系统、打印、证件照等；下单时不扣减库存 |
 
 SKU 总数会随你进货情况动态变化。
