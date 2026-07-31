@@ -1,1 +1,74 @@
-/* pages/home.wxss */
+.home-page {
+  min-height: 100vh;
+}
+
+.profile-header {
+  padding: 52rpx 32rpx 44rpx;
+  background: #1677a7;
+  color: #ffffff;
+}
+
+.profile-header__title,
+.profile-header__subtitle {
+  display: block;
+}
+
+.profile-header__title {
+  font-size: 38rpx;
+  font-weight: 700;
+}
+
+.profile-header__subtitle {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.menu-list {
+  margin-top: 20rpx;
+  background: #ffffff;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 120rpx;
+  margin: 0;
+  padding: 20rpx 32rpx;
+  border-radius: 0;
+  background: #ffffff;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.menu-item + .menu-item {
+  border-top: 1rpx solid #eaecf0;
+}
+
+.menu-item::after {
+  border: 0;
+}
+
+.menu-item__title,
+.menu-item__description {
+  display: block;
+}
+
+.menu-item__title {
+  color: #101828;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.menu-item__description {
+  margin-top: 6rpx;
+  color: #667085;
+  font-size: 22rpx;
+}
+
+.menu-item__arrow {
+  color: #98a2b3;
+  font-size: 38rpx;
+}

@@ -1,0 +1,148 @@
+.checkout-page {
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
+}
+
+.section {
+  padding: 28rpx 30rpx;
+  background: #ffffff;
+  border-bottom: 16rpx solid #f2f4f7;
+}
+
+.section__title {
+  display: block;
+  margin-bottom: 22rpx;
+  color: #101828;
+  font-size: 29rpx;
+  font-weight: 600;
+}
+
+.mode-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.mode-control__button {
+  min-height: 72rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  border: 1rpx solid #d0d5dd;
+  border-radius: 8rpx;
+  background: #ffffff;
+  color: #344054;
+  font-size: 25rpx;
+  line-height: 70rpx;
+}
+
+.mode-control__button::after,
+.submit-button::after {
+  border: 0;
+}
+
+.mode-control__button--active {
+  border-color: #1677a7;
+  background: #eef8fc;
+  color: #1677a7;
+  font-weight: 600;
+}
+
+.form-section {
+  padding-top: 12rpx;
+  padding-bottom: 12rpx;
+}
+
+.form-section .section__title {
+  margin-top: 16rpx;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  min-height: 92rpx;
+  border-top: 1rpx solid #eaecf0;
+}
+
+.form-row--multiline {
+  align-items: flex-start;
+  padding: 24rpx 0;
+}
+
+.form-row__label {
+  flex: 0 0 140rpx;
+  color: #344054;
+  font-size: 25rpx;
+}
+
+.form-row__input,
+.form-row__textarea {
+  flex: 1;
+  min-width: 0;
+  color: #101828;
+  font-size: 25rpx;
+  text-align: right;
+}
+
+.form-row__textarea {
+  min-height: 80rpx;
+  line-height: 1.5;
+}
+
+.submit-placeholder {
+  height: 128rpx;
+}
+
+.submit-bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  min-height: 108rpx;
+  padding: 12rpx 24rpx calc(12rpx + env(safe-area-inset-bottom));
+  background: #ffffff;
+  border-top: 1rpx solid #eaecf0;
+  box-sizing: border-box;
+}
+
+.submit-total {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.submit-total__label {
+  margin-right: 10rpx;
+  color: #344054;
+  font-size: 23rpx;
+}
+
+.submit-total__price {
+  color: #e53e3e;
+  font-size: 34rpx;
+  font-weight: 700;
+}
+
+.submit-button {
+  flex: 0 0 220rpx;
+  min-height: 76rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border-radius: 8rpx;
+  background: #e53e3e;
+  color: #ffffff;
+  font-size: 27rpx;
+  font-weight: 600;
+  line-height: 76rpx;
+}
+
+.submit-button[disabled] {
+  background: #d0d5dd;
+  color: #ffffff;
+}

@@ -24,17 +24,19 @@ Page({
       this.getRecommendedProducts()
     ])
   },
-  getBanners() {
-    const db = wx.cloud.database()
-    return db.collection('top-banner').get()
-      .then((res) => {
-        this.setData({ banners: res.data || [] })
-      })
-      .catch((err) => {
-        console.error('获取轮播图失败:', err)
-        this.setData({ banners: [] })
-      })
-  },
+getBanners() {
+  const db = wx.cloud.database()
+  return db.collection('top-banner').get()
+    .then((res) => {
+      // 反转数组，让最新添加的显示在最前面
+      const banners = (res.data || []).reverse()
+      this.setData({ banners })
+    })
+    .catch((err) => {
+      console.error('获取轮播图失败:', err)
+      this.setData({ banners: [] })
+    })
+},
   getRecommendedProducts() {
     const db = wx.cloud.database()
     return db.collection('goods')
@@ -42,7 +44,9 @@ Page({
       .orderBy('sort', 'asc')
       .get()
       .then((res) => {
-        const products = (res.data || []).map(normalizeProduct)
+        const products = (res.data || [])
+          .filter((product) => product.status === '1')
+          .map(normalizeProduct)
         this.setData({
           recommendedProducts: products,
           productsStatus: products.length > 0 ? 'success' : 'empty'

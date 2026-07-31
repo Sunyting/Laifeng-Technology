@@ -51,7 +51,9 @@ Page({
       .get()
       .then((res) => {
         if (requestId !== this.productRequestId) return
-        const products = (res.data || []).map(normalizeProduct)
+        const products = (res.data || [])
+          .filter((product) => product.status === '1')
+          .map(normalizeProduct)
         this.setData({
           products,
           productsStatus: products.length > 0 ? 'success' : 'empty'

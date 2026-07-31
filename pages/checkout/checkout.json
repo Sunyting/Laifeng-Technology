@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "确认订单",
+  "usingComponents": {
+    "order-items": "/components/order-items/index",
+    "status-view": "/components/status-view/index"
+  }
+}

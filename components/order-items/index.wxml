@@ -1,0 +1,16 @@
+<view class="order-items">
+  <view wx:for="{{items}}" wx:key="key" class="order-item">
+    <image wx:if="{{item.image}}" class="order-item__image" src="{{item.image}}" mode="aspectFill"></image>
+    <view wx:else class="order-item__placeholder">
+      <text>{{item.name}}</text>
+    </view>
+    <view class="order-item__content">
+      <text class="order-item__name">{{item.name}}</text>
+      <text wx:if="{{item.specText}}" class="order-item__spec">{{item.specText}}</text>
+      <view class="order-item__price-row">
+        <text class="order-item__price">¥{{item.unitPriceText}}</text>
+        <text class="order-item__quantity">×{{item.quantity}}</text>
+      </view>
+    </view>
+  </view>
+</view>

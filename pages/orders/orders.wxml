@@ -1,0 +1,29 @@
+<view class="orders-page">
+  <view wx:if="{{pageStatus === 'success'}}" class="order-list">
+    <view wx:for="{{orders}}" wx:key="_id" class="order-card" data-id="{{item._id}}" bindtap="openOrder">
+      <view class="order-card__header">
+        <view>
+          <text class="order-card__number">订单 {{item.orderNo}}</text>
+          <text class="order-card__time">{{item.createdAtText}}</text>
+        </view>
+        <text class="order-card__status">{{item.statusLabel}}</text>
+      </view>
+      <order-items items="{{item.items}}"></order-items>
+      <view class="order-card__footer">
+        <text class="order-card__count">共 {{item.totalQuantity}} 件</text>
+        <view class="order-card__amount">
+          <text>{{item.amountType === 'estimated' ? '预估金额' : '合计'}}</text>
+          <text class="order-card__price">¥{{item.totalAmountText}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <status-view
+    wx:else
+    status="{{pageStatus}}"
+    message="{{pageMessage}}"
+    action-text="{{pageStatus === 'error' ? '重新加载' : (pageStatus === 'empty' ? '去逛逛' : '')}}"
+    bind:action="handleStatusAction"
+  ></status-view>
+</view>

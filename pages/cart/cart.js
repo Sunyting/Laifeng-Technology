@@ -104,11 +104,6 @@ Page({
       wx.showToast({ title: '请先选择商品', icon: 'none' })
       return
     }
-    wx.showModal({
-      title: '订单功能待接入',
-      content: `已选择 ${this.data.selectedCount} 件商品，合计 ¥${this.data.totalPrice}。当前暂未接入订单提交，请联系门店完成购买。`,
-      showCancel: false,
-      confirmText: '知道了'
-    })
+    wx.navigateTo({ url: '/pages/checkout/checkout' })
   }
 })

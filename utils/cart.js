@@ -12,6 +12,14 @@ const saveCartItems = (items) => {
   return items
 }
 
+const removeCartItems = (keys = []) => {
+  const keySet = new Set(keys)
+  const items = getCartItems().filter((item) => !keySet.has(item.key))
+  saveCartItems(items)
+  syncCartBadge(items)
+  return items
+}
+
 const syncCartBadge = (items = getCartItems()) => {
   const count = items.reduce((sum, item) => sum + toFiniteNumber(item.quantity), 0)
   if (count > 0) {
@@ -65,6 +73,7 @@ module.exports = {
   CART_STORAGE_KEY,
   addCartItem,
   getCartItems,
+  removeCartItems,
   saveCartItems,
   syncCartBadge
 }

@@ -34,6 +34,10 @@ Page({
     this.setData({ pageStatus: 'loading', pageMessage: '' })
     return wx.cloud.database().collection('goods').doc(this.productId).get()
       .then((res) => {
+        if (!res.data || res.data.status !== '1') {
+          this.setData({ pageStatus: 'empty', pageMessage: '该商品暂未上架' })
+          return
+        }
         const product = normalizeProduct(res.data)
         const selectedValues = getInitialSelection(product)
         const selectedSku = findSelectedSku(product, selectedValues)

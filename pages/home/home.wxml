@@ -1,2 +1,23 @@
-<!--pages/home.wxml-->
-<text>pages/home.wxml</text>
+<view class="home-page">
+  <view class="profile-header">
+    <text class="profile-header__title">来锋科技</text>
+    <text class="profile-header__subtitle">维修、安装与数码服务</text>
+  </view>
+
+  <view class="menu-list">
+    <button class="menu-item" bindtap="openOrders">
+      <view>
+        <text class="menu-item__title">我的订单</text>
+        <text class="menu-item__description">查看订单状态和商品明细</text>
+      </view>
+      <text class="menu-item__arrow">›</text>
+    </button>
+    <button class="menu-item" bindtap="openCart">
+      <view>
+        <text class="menu-item__title">购物车</text>
+        <text class="menu-item__description">继续选择商品或服务</text>
+      </view>
+      <text class="menu-item__arrow">›</text>
+    </button>
+  </view>
+</view>

@@ -1,0 +1,51 @@
+<view class="order-detail-page">
+  <block wx:if="{{pageStatus === 'success'}}">
+    <view class="status-section">
+      <text class="status-section__status">{{order.statusLabel}}</text>
+      <text class="status-section__hint">订单已提交，门店确认后会与您联系</text>
+    </view>
+
+    <view class="detail-section info-list">
+      <view class="info-row">
+        <text class="info-row__label">订单编号</text>
+        <text class="info-row__value">{{order.orderNo}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-row__label">下单时间</text>
+        <text class="info-row__value">{{order.createdAtText}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-row__label">办理方式</text>
+        <text class="info-row__value">{{order.fulfillmentLabel}}</text>
+      </view>
+    </view>
+
+    <view class="detail-section">
+      <text class="section-title">联系信息</text>
+      <view class="contact-line">
+        <text>{{order.contact.name}}</text>
+        <text>{{order.contact.phone}}</text>
+      </view>
+      <text wx:if="{{order.contact.address}}" class="contact-address">{{order.contact.address}}</text>
+    </view>
+
+    <view class="detail-section">
+      <text class="section-title">商品明细</text>
+      <order-items items="{{order.items}}"></order-items>
+      <view class="amount-row">
+        <text>{{order.amountType === 'estimated' ? '预估金额' : '订单金额'}}</text>
+        <text class="amount-row__price">¥{{order.totalAmountText}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{order.note}}" class="detail-section">
+      <text class="section-title">订单备注</text>
+      <text class="note-text">{{order.note}}</text>
+    </view>
+
+    <view class="order-note">维修、安装及起步价商品以门店确认的最终方案和价格为准。</view>
+    <button class="orders-button" bindtap="goToOrders">查看全部订单</button>
+  </block>
+
+  <status-view wx:else status="{{pageStatus}}" message="{{pageMessage}}" action-text="{{pageStatus === 'error' ? '重新加载' : ''}}" bind:action="loadOrder"></status-view>
+</view>
