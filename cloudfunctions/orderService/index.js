@@ -7,6 +7,7 @@ const command = db.command
 const MAX_APPOINTMENT_DAYS = 90
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000
 const EXPIRY_BATCH_LIMIT = 100
+const PRIVACY_CONSENT_VERSION = '2026-08-03'
 
 class BusinessError extends Error {
   constructor(code, message) {
@@ -19,6 +20,12 @@ const success = (data) => ({ success: true, data })
 const failure = (code, message) => ({ success: false, code, message })
 
 const normalizeText = (value, maxLength) => String(value || '').trim().slice(0, maxLength)
+
+const requirePrivacyConsent = (event) => {
+  if (event.privacyConsent !== true) {
+    throw new BusinessError('PRIVACY_CONSENT_REQUIRED', '请先阅读并同意用户服务协议和隐私政策')
+  }
+}
 
 const validateItems = (rawItems) => {
   const items = Array.isArray(rawItems) ? rawItems : []
@@ -352,6 +359,7 @@ const getCheckoutOptions = async (event) => {
 
 const createOrders = async (event, openid, splitOrders) => {
   await requireLoggedInProfile(openid)
+  requirePrivacyConsent(event)
   const payload = validateCreatePayload(event)
   const groupedItems = payload.items.reduce((groups, item) => {
     if (!groups[item.productId]) groups[item.productId] = []
@@ -513,6 +521,8 @@ const createOrders = async (event, openid, splitOrders) => {
     const profileUpdate = {
       name: payload.contact.name,
       phone: payload.contact.phone,
+      privacyConsentVersion: PRIVACY_CONSENT_VERSION,
+      privacyConsentedAt: now,
       updatedAt: now
     }
     if (orderGroups.some((group) => group.fulfillmentType === 'delivery')) {
@@ -529,6 +539,8 @@ const createOrders = async (event, openid, splitOrders) => {
           name: payload.contact.name,
           phone: payload.contact.phone,
           address: payload.contact.address,
+          privacyConsentVersion: PRIVACY_CONSENT_VERSION,
+          privacyConsentedAt: now,
           createdAt: now,
           updatedAt: now
         }
@@ -551,11 +563,14 @@ const getProfile = async (openid) => {
     avatarUrl: profile.avatarUrl || '',
     name: profile.name || '',
     phone: profile.phone || '',
-    address: profile.address || ''
+    address: profile.address || '',
+    privacyConsentVersion: profile.privacyConsentVersion || '',
+    privacyConsentedAt: profile.privacyConsentedAt || null
   })
 }
 
 const updateProfile = async (event, openid) => {
+  requirePrivacyConsent(event)
   const profile = {
     nickName: normalizeText(event.profile && event.profile.nickName, 30),
     avatarUrl: normalizeText(event.profile && event.profile.avatarUrl, 500),
@@ -574,16 +589,20 @@ const updateProfile = async (event, openid) => {
   }
 
   const now = Date.now()
+  const privacyConsent = {
+    privacyConsentVersion: PRIVACY_CONSENT_VERSION,
+    privacyConsentedAt: now
+  }
   const profileRef = db.collection('users').doc(openid)
   try {
     await profileRef.get()
-    await profileRef.update({ data: { ...profile, updatedAt: now } })
+    await profileRef.update({ data: { ...profile, ...privacyConsent, updatedAt: now } })
   } catch (err) {
     await profileRef.set({
-      data: { ...profile, createdAt: now, updatedAt: now }
+      data: { ...profile, ...privacyConsent, createdAt: now, updatedAt: now }
     })
   }
-  return success({ userId: openid, ...profile })
+  return success({ userId: openid, ...profile, ...privacyConsent })
 }
 
 const listOrders = async (openid) => {
@@ -599,7 +618,16 @@ const listOrders = async (openid) => {
 
 const getOrder = async (event, openid) => {
   await requireLoggedInProfile(openid)
-  const orderId = normalizeText(event.orderId, 64)
+  let orderId = normalizeText(event.orderId, 64)
+  const paymentId = normalizeText(event.paymentId, 64)
+  if (!orderId && paymentId) {
+    const paymentResult = await db.collection('payments').doc(paymentId).get()
+    const payment = paymentResult.data
+    if (!payment || payment.userId !== openid) {
+      throw new BusinessError('ORDER_NOT_FOUND', '订单不存在或无权查看')
+    }
+    orderId = normalizeText(payment.orderId, 64)
+  }
   if (!orderId) throw new BusinessError('INVALID_ORDER', '订单参数无效')
   let result = await db.collection('orders').doc(orderId).get()
   if (!result.data || result.data.userId !== openid) {

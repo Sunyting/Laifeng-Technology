@@ -78,31 +78,30 @@
 }
 
 .product__bottom {
-  position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56rpx;
   align-items: center;
   min-height: 56rpx;
-  padding-right: 68rpx;
   gap: 12rpx;
   margin-top: 14rpx;
   box-sizing: border-box;
 }
 
 .product__action {
-  position: absolute;
-  top: 0;
-  right: 0;
   display: flex;
-  flex: 0 0 56rpx;
   align-items: center;
   justify-content: center;
   width: 56rpx;
   height: 56rpx;
+  min-width: 56rpx;
+  max-width: 56rpx;
   min-height: 56rpx;
+  max-height: 56rpx;
   margin: 0;
   padding: 0;
   border-radius: 50%;
   background: #e53e3e;
+  box-sizing: border-box;
   line-height: 1;
 }
 

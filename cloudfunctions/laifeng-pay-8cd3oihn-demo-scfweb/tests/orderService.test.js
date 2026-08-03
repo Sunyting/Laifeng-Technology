@@ -4,6 +4,11 @@ const OrderService = require('../services/orderService');
 
 const clone = (value) => value == null ? value : JSON.parse(JSON.stringify(value));
 
+const resolveUpdateValue = (value) => {
+    if (value && value.__memoryCommand === 'set') return clone(value.value);
+    return clone(value);
+};
+
 class MemoryDocument {
     constructor(store, collectionName, id) {
         this.store = store;
@@ -23,7 +28,10 @@ class MemoryDocument {
     async update({ data }) {
         const current = this.store[this.collectionName].get(this.id);
         if (!current) throw new Error(`document not found: ${this.collectionName}/${this.id}`);
-        this.store[this.collectionName].set(this.id, { ...current, ...clone(data) });
+        const update = Object.fromEntries(
+            Object.entries(data).map(([key, value]) => [key, resolveUpdateValue(value)])
+        );
+        this.store[this.collectionName].set(this.id, { ...current, ...update });
         return {};
     }
 }
@@ -41,6 +49,9 @@ class MemoryCollection {
 
 class MemoryDatabase {
     constructor(seed) {
+        this.command = {
+            set: (value) => ({ __memoryCommand: 'set', value: clone(value) })
+        };
         this.store = {
             orders: new Map(Object.entries(seed.orders || {})),
             payments: new Map(Object.entries(seed.payments || {}))
@@ -99,6 +110,25 @@ test('统一下单金额只来自数据库订单', async () => {
     assert.deepEqual(params.amount, { total: 3000, currency: 'CNY' });
     assert.equal(params.payer.openid, 'openid-owner');
     assert.equal(params.time_expire, new Date(NOW + 30 * 60 * 1000).toISOString());
+});
+
+test('支付参数可以整体替换旧支付单中的 null 字段', async () => {
+    const { db, service } = createService();
+    const { payment } = await service.preparePayment(ORDER_ID, 'openid-owner');
+    const storedPayment = db.store.payments.get(payment._id);
+    storedPayment.paymentParams = null;
+    const paymentParams = {
+        timeStamp: '1785470400',
+        nonceStr: 'nonce',
+        package: 'prepay_id=wx-prepay-id',
+        signType: 'RSA',
+        paySign: 'signature'
+    };
+
+    await service.savePaymentParams(payment._id, paymentParams, 'request-id');
+
+    assert.deepEqual(db.store.payments.get(payment._id).paymentParams, paymentParams);
+    assert.equal(db.store.payments.get(payment._id).requestId, 'request-id');
 });
 
 test('支付回调金额不一致时拒绝更新', async () => {

@@ -93,34 +93,36 @@
         <view class="editor-close" bindtap="closeEditor" aria-label="关闭">×</view>
       </view>
 
+      <privacy-consent checked="{{privacyAccepted}}" bind:change="handlePrivacyChange"></privacy-consent>
+
       <view wx:if="{{editorType === 'profile'}}" class="profile-form">
-        <button class="avatar-picker" style="width: 100%; margin-left: 0; margin-right: 0;" open-type="chooseAvatar" bindchooseavatar="chooseAvatar">
+        <button class="avatar-picker" style="width: 100%; margin-left: 0; margin-right: 0;" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" disabled="{{!privacyAccepted}}">
           <image wx:if="{{avatarPreview}}" class="avatar-picker__image" src="{{avatarPreview}}" mode="aspectFill"></image>
           <view wx:else class="avatar-picker__image avatar-picker__placeholder">{{avatarText}}</view>
           <text class="avatar-picker__text">选择微信头像</text>
         </button>
         <label class="form-field">
           <text class="form-label">昵称</text>
-          <input class="form-input" type="nickname" maxlength="30" value="{{profileDraft.nickName}}" placeholder="填写微信昵称" data-field="nickName" bindinput="handleProfileInput" />
+          <input class="form-input" type="nickname" maxlength="30" value="{{profileDraft.nickName}}" placeholder="填写微信昵称" data-field="nickName" bindinput="handleProfileInput" disabled="{{!privacyAccepted}}" />
         </label>
       </view>
 
       <view wx:else class="address-form">
         <label class="form-field">
           <text class="form-label">联系人</text>
-          <input class="form-input" maxlength="30" value="{{profileDraft.name}}" placeholder="填写姓名" data-field="name" bindinput="handleProfileInput" />
+          <input class="form-input" maxlength="30" value="{{profileDraft.name}}" placeholder="填写姓名" data-field="name" bindinput="handleProfileInput" disabled="{{!privacyAccepted}}" />
         </label>
         <label class="form-field">
           <text class="form-label">手机号码</text>
-          <input class="form-input" type="number" maxlength="11" value="{{profileDraft.phone}}" placeholder="填写手机号码" data-field="phone" bindinput="handleProfileInput" />
+          <input class="form-input" type="number" maxlength="11" value="{{profileDraft.phone}}" placeholder="填写手机号码" data-field="phone" bindinput="handleProfileInput" disabled="{{!privacyAccepted}}" />
         </label>
         <label class="form-field form-field--textarea">
           <text class="form-label">详细地址</text>
-          <textarea class="form-textarea" maxlength="120" auto-height value="{{profileDraft.address}}" placeholder="填写小区、楼栋、门牌号" data-field="address" bindinput="handleProfileInput"></textarea>
+          <textarea class="form-textarea" maxlength="120" auto-height value="{{profileDraft.address}}" placeholder="填写小区、楼栋、门牌号" data-field="address" bindinput="handleProfileInput" disabled="{{!privacyAccepted}}"></textarea>
         </label>
       </view>
 
-      <view class="editor-save {{isSaving ? 'editor-save--disabled' : ''}}" bindtap="saveProfile">
+      <view class="editor-save {{isSaving || !privacyAccepted ? 'editor-save--disabled' : ''}}" bindtap="saveProfile">
         {{isSaving ? '保存中...' : '保存'}}
       </view>
     </view>

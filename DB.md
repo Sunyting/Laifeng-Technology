@@ -2,7 +2,7 @@
 
 本文档是项目数据库结构的基准文档。修改集合、字段、数据类型、索引、权限或关联关系时，必须同步更新本文档和相关代码。
 
-最后核对时间：2026-07-31
+最后核对时间：2026-08-03
 云开发环境：`cloud1-6gwdbwvi5f830ad2`（上海 `ap-shanghai`）
 
 ## 一、已部署结构概览
@@ -202,6 +202,8 @@ specs
 | `name` | `string` | 否 | 默认上门联系人姓名，最多 30 个字符 |
 | `phone` | `string` | 否 | 默认上门联系手机号码 |
 | `address` | `string` | 否 | 默认送货或上门地址，最多 120 个字符 |
+| `privacyConsentVersion` | `string` | 否 | 用户最近主动同意的《用户服务协议》和《隐私政策》版本 |
+| `privacyConsentedAt` | `number \| null` | 否 | 最近一次主动同意协议的 Unix 毫秒时间戳 |
 | `createdAt` | `number` | 是 | 首次保存时间，Unix 毫秒时间戳 |
 | `updatedAt` | `number` | 是 | 最后更新时间，Unix 毫秒时间戳 |
 
@@ -320,7 +322,7 @@ specs
 | `status` | `"pending" \| "paid" \| "closed" \| "refunding" \| "refunded"` | 是 | 支付单状态 |
 | `transactionId` | `string` | 否 | 微信支付订单号 |
 | `requestId` | `string` | 否 | 微信支付响应头 `Request-ID`，用于问题排查 |
-| `paymentParams` | `object \| null` | 是 | 微信统一下单成功后返回的小程序调起支付参数；下单请求处理中可为 `null` |
+| `paymentParams` | `object \| null` | 是 | 微信统一下单成功后返回的小程序调起支付参数；新支付单初始化为 `{}`，历史支付单在下单请求处理中可能为 `null`，写入时必须使用 `db.command.set` 整体替换 |
 | `expiresAt` | `number` | 是 | 支付单过期时间，Unix 毫秒时间戳；同时写入微信下单的 `time_expire` |
 | `paidAt` | `number \| null` | 是 | 支付到账时间 |
 | `refundId` | `string` | 否 | 微信退款单号 |
@@ -329,6 +331,8 @@ specs
 | `updatedAt` | `number` | 是 | 更新时间 |
 
 支付函数必须只接收 `orderId`，重新读取订单归属、状态及 `onlinePayableAmountCents` 后创建微信支付单，不能接收客户端传入的金额。小程序通过 `wx.cloud.callHTTPFunction` 调用，平台注入的 `x-wx-openid` 是支付函数唯一接受的用户身份来源。支付成功以服务端通知或主动查单结果为准，`wx.requestPayment` 的成功回调只用于界面反馈。支付通知必须校验商户订单号、金额、币种和用户归属，并以事务或条件更新实现幂等。
+
+微信支付商户平台的“小程序商品订单详情 PATH”填写 `pages/order-detail/order-detail?paymentId=${商品订单号}`。微信会把占位符替换为 `payments._id`；订单详情页通过 `orderService` 校验支付单归属后解析对应的 `orders._id`，客户端不能直接读取 `payments` 集合。
 
 ### 当前索引
 
@@ -353,6 +357,8 @@ specs
 `orderService` 云函数使用 Node.js 20 和 `wx-server-sdk@4.0.2`，只允许已登录的非匿名用户调用。它负责保存微信展示资料和默认联系资料、创建订单、扣减库存以及按当前用户查询订单，客户端不直接读写 `users` 和 `orders`。
 
 创建订单前，`orderService` 还会检查当前 OpenID 对应的 `users` 记录是否同时具备 `nickName` 和 `avatarUrl`；未完善资料时返回 `LOGIN_REQUIRED`。订单的 `userId` 始终由云函数写入当前 OpenID，不接收客户端指定的用户 ID。后续接入支付时，创建支付单和处理支付结果也必须执行相同的用户归属校验。
+
+保存头像、昵称、联系人、电话或地址，以及创建订单前，客户端必须展示《用户服务协议》和《隐私政策》，并由用户主动勾选同意。`orderService` 仅接受显式传入 `privacyConsent: true` 的资料保存和下单请求，同时把当前协议版本和同意时间记录到 `users`；未同意时返回 `PRIVACY_CONSENT_REQUIRED`。
 
 未完善头像和昵称时，个人中心不展示默认地址和订单概览，订单列表及订单详情接口也会返回 `LOGIN_REQUIRED`，不会向客户端返回订单数据。完善资料后，页面才按当前 OpenID 加载相应地址和订单。
 

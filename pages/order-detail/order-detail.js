@@ -11,6 +11,7 @@ Page({
   },
   onLoad(options) {
     this.orderId = options.id || ''
+    this.paymentId = options.paymentId || ''
     this.loadOrder()
   },
   onShow() {
@@ -23,13 +24,19 @@ Page({
     this.stopCountdown()
   },
   loadOrder() {
-    if (!this.orderId) {
+    if (!this.orderId && !this.paymentId) {
       this.setData({ pageStatus: 'error', pageMessage: '订单参数无效' })
       return Promise.resolve()
     }
     this.setData({ pageStatus: 'loading', pageMessage: '' })
-    return callOrderService('getOrder', { orderId: this.orderId })
-      .then((order) => this.setData({ order: formatOrder(order), pageStatus: 'success' }))
+    const params = this.orderId
+      ? { orderId: this.orderId }
+      : { paymentId: this.paymentId }
+    return callOrderService('getOrder', params)
+      .then((order) => {
+        this.orderId = order._id
+        this.setData({ order: formatOrder(order), pageStatus: 'success' })
+      })
       .catch((err) => {
         console.error('获取订单详情失败:', err)
         this.setData({ pageStatus: 'error', pageMessage: err.message || '订单加载失败，请稍后重试' })

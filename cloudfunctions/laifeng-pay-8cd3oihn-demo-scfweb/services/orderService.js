@@ -106,7 +106,7 @@ class OrderService {
                 userId: openid,
                 amountCents,
                 status: 'pending',
-                paymentParams: null,
+                paymentParams: {},
                 transactionId: '',
                 requestId: '',
                 expiresAt,
@@ -149,7 +149,7 @@ class OrderService {
         const now = this.now();
         await this.db.collection('payments').doc(outTradeNo).update({
             data: {
-                paymentParams,
+                paymentParams: this.db.command.set(paymentParams),
                 requestId: requestId || '',
                 updatedAt: now
             }

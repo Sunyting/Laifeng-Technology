@@ -2,6 +2,11 @@ const { signMode, payConfig } = require('../config/config');
 const SdkStrategy = require('./strategies/sdkStrategy');
 const OrderService = require('./orderService');
 
+const CLIENT_PAYMENT_FIELDS = ['timeStamp', 'nonceStr', 'package', 'signType', 'paySign'];
+const hasClientPaymentParams = (params) => params && CLIENT_PAYMENT_FIELDS.every(
+    (field) => typeof params[field] === 'string' && params[field]
+);
+
 class PayService {
     constructor(options = {}) {
         this.orderService = options.orderService || new OrderService();
@@ -10,7 +15,7 @@ class PayService {
 
     async createBusinessOrder(orderId, openid) {
         const { order, payment } = await this.orderService.preparePayment(orderId, openid);
-        if (payment.paymentParams) {
+        if (hasClientPaymentParams(payment.paymentParams)) {
             return { status: 200, data: payment.paymentParams };
         }
 
@@ -28,14 +33,15 @@ class PayService {
                 error.code = result.data?.code || 'WECHAT_PAY_ERROR';
                 throw error;
             }
+
+            const requestId = result.headers?.['request-id'] || result.headers?.['Request-ID'] || '';
+            await this.orderService.savePaymentParams(payment._id, result.data, requestId);
         } catch (error) {
-            // 微信拒绝下单或网络失败时释放临时支付单，允许用户重新支付。
+            // 客户端收到支付参数前发生任何错误，都释放临时支付单以允许重试。
             await this.orderService.releaseFailedPayment(payment._id);
             throw error;
         }
 
-        const requestId = result.headers?.['request-id'] || result.headers?.['Request-ID'] || '';
-        await this.orderService.savePaymentParams(payment._id, result.data, requestId);
         return result;
     }
 

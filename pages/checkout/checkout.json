@@ -2,6 +2,7 @@
   "navigationBarTitleText": "确认订单",
   "usingComponents": {
     "order-items": "/components/order-items/index",
+    "privacy-consent": "/components/privacy-consent/index",
     "status-view": "/components/status-view/index"
   }
 }

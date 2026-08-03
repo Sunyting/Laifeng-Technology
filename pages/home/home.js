@@ -24,6 +24,7 @@ Page({
     isLoggedIn: false,
     isLoading: true,
     isSaving: false,
+    privacyAccepted: false,
     editorType: ''
   },
   onShow() {
@@ -45,6 +46,7 @@ Page({
       this.setData({
         profile,
         isLoggedIn: session.loggedIn,
+        privacyAccepted: Boolean(profile.privacyConsentVersion),
         avatarPreview: profile.avatarUrl,
         avatarText: (profile.nickName || profile.name || '顾').slice(0, 1),
         orderCounts: { all: 0, unpaid: 0, paid: 0, pending: 0 }
@@ -83,7 +85,8 @@ Page({
     this.setData({
       editorType: 'profile',
       profileDraft: { ...this.data.profile },
-      avatarPreview: this.data.profile.avatarUrl
+      avatarPreview: this.data.profile.avatarUrl,
+      privacyAccepted: Boolean(this.data.profile.privacyConsentVersion)
     })
   },
   openAddressEditor() {
@@ -94,7 +97,8 @@ Page({
     }
     this.setData({
       editorType: 'address',
-      profileDraft: { ...this.data.profile }
+      profileDraft: { ...this.data.profile },
+      privacyAccepted: Boolean(this.data.profile.privacyConsentVersion)
     })
   },
   closeEditor() {
@@ -102,6 +106,9 @@ Page({
     this.setData({ editorType: '', avatarPreview: this.data.profile.avatarUrl })
   },
   noop() {},
+  handlePrivacyChange(e) {
+    this.setData({ privacyAccepted: Boolean(e.detail.checked) })
+  },
   handleProfileInput(e) {
     const field = e.currentTarget.dataset.field
     if (!field) return
@@ -125,6 +132,10 @@ Page({
   },
   saveProfile() {
     if (this.data.isSaving) return
+    if (!this.data.privacyAccepted) {
+      wx.showToast({ title: '请先阅读并同意协议', icon: 'none' })
+      return
+    }
     const draft = {
       ...this.data.profileDraft,
       nickName: this.data.profileDraft.nickName.trim(),
@@ -162,7 +173,8 @@ Page({
       : Promise.resolve(this.data.profile.avatarUrl)
     avatarPromise
       .then((avatarUrl) => callOrderService('updateProfile', {
-        profile: { ...draft, avatarUrl }
+        profile: { ...draft, avatarUrl },
+        privacyConsent: true
       }))
       .then((profile) => {
         const session = saveUserSession(profile)

@@ -1,0 +1,28 @@
+<view class="privacy-consent">
+  <checkbox-group class="privacy-consent__check" bindchange="handleChange">
+    <label class="privacy-consent__label">
+      <checkbox value="accepted" checked="{{checked}}" color="#146f91"></checkbox>
+      <text>我已阅读并同意</text>
+    </label>
+  </checkbox-group>
+  <view class="privacy-consent__links">
+    <text class="privacy-consent__link" data-document="service" catchtap="openDocument">《用户服务协议》</text>
+    <text>和</text>
+    <text class="privacy-consent__link" data-document="privacy" catchtap="openDocument">《隐私政策》</text>
+  </view>
+</view>
+
+<view wx:if="{{documentVisible}}" class="privacy-document-mask" catchtap="closeDocument">
+  <view class="privacy-document" catchtap="noop">
+    <view class="privacy-document__header">
+      <text class="privacy-document__title">{{documentTitle}}</text>
+      <view class="privacy-document__close" bindtap="closeDocument" aria-label="关闭">×</view>
+    </view>
+    <scroll-view class="privacy-document__body" scroll-y>
+      <view wx:for="{{documentSections}}" wx:key="title" class="privacy-document__section">
+        <text class="privacy-document__heading">{{item.title}}</text>
+        <text class="privacy-document__content">{{item.content}}</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

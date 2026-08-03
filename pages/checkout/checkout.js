@@ -106,6 +106,7 @@ Page({
     note: '',
     pageStatus: 'loading',
     pageMessage: '',
+    privacyAccepted: false,
     submitting: false
   },
   onLoad(options) {
@@ -155,12 +156,15 @@ Page({
     return callOrderService('getProfile')
       .then((profile) => {
         if (!profile) return
+        this.profileContact = {
+          name: profile.name || '',
+          phone: profile.phone || '',
+          address: profile.address || ''
+        }
+        const privacyAccepted = Boolean(profile.privacyConsentVersion)
         this.setData({
-          contact: {
-            name: profile.name || '',
-            phone: profile.phone || '',
-            address: profile.address || ''
-          }
+          privacyAccepted,
+          contact: privacyAccepted ? this.profileContact : { name: '', phone: '', address: '' }
         })
       })
       .catch((err) => console.warn('读取联系人信息失败:', err))
@@ -257,10 +261,20 @@ Page({
     const field = e.currentTarget.dataset.field
     this.setData({ [`contact.${field}`]: e.detail.value })
   },
+  handlePrivacyChange(e) {
+    const privacyAccepted = Boolean(e.detail.checked)
+    this.setData({
+      privacyAccepted,
+      contact: privacyAccepted && this.profileContact
+        ? this.profileContact
+        : { name: '', phone: '', address: '' }
+    })
+  },
   handleNoteInput(e) {
     this.setData({ note: e.detail.value })
   },
   validateForm() {
+    if (!this.data.privacyAccepted) return '请先阅读并同意协议'
     const contact = {
       name: this.data.contact.name.trim(),
       phone: this.data.contact.phone.trim(),
@@ -326,6 +340,7 @@ Page({
     callOrderService('createOrders', {
       items,
       contact,
+      privacyConsent: true,
       appointment: this.data.hasAppointmentItems
         ? { date: this.data.appointmentDate, time: this.data.appointmentTime }
         : null,
