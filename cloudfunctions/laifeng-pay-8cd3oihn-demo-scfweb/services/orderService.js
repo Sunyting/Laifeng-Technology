@@ -243,14 +243,20 @@ class OrderService {
                     updatedAt: now
                 }
             });
-            await orderRef.update({
-                data: {
-                    paymentStatus: 'paid',
-                    paidAmountCents: payment.amountCents,
-                    paidAt: now,
-                    updatedAt: now
-                }
-            });
+            const orderUpdate = {
+                paymentStatus: 'paid',
+                paidAmountCents: payment.amountCents,
+                paidAt: now,
+                updatedAt: now
+            };
+            if (order.status === 'pending_payment') {
+                orderUpdate.status = 'pending_confirmation';
+                orderUpdate.statusHistory = [
+                    ...(Array.isArray(order.statusHistory) ? order.statusHistory : []),
+                    { status: 'pending_confirmation', createdAt: now }
+                ];
+            }
+            await orderRef.update({ data: orderUpdate });
             return true;
         });
     }

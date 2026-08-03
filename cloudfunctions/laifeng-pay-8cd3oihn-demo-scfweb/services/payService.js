@@ -19,11 +19,18 @@ class PayService {
         params.mchid = payConfig.mchId;
         params.notify_url = payConfig.jsapiNotifyUrl;
 
-        const result = await this.strategy.jsapi(params);
-        if (result.status !== 200 || !result.data?.paySign) {
-            const message = result.data?.message || result.data?.code || '微信支付下单失败';
-            const error = new Error(message);
-            error.code = result.data?.code || 'WECHAT_PAY_ERROR';
+        let result;
+        try {
+            result = await this.strategy.jsapi(params);
+            if (result.status !== 200 || !result.data?.paySign) {
+                const message = result.data?.message || result.data?.code || '微信支付下单失败';
+                const error = new Error(message);
+                error.code = result.data?.code || 'WECHAT_PAY_ERROR';
+                throw error;
+            }
+        } catch (error) {
+            // 微信拒绝下单或网络失败时释放临时支付单，允许用户重新支付。
+            await this.orderService.releaseFailedPayment(payment._id);
             throw error;
         }
 

@@ -5,6 +5,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const command = db.command
 const MAX_APPOINTMENT_DAYS = 90
+const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000
+const EXPIRY_BATCH_LIMIT = 100
 
 class BusinessError extends Error {
   constructor(code, message) {
@@ -78,6 +80,137 @@ const validateAppointment = (rawAppointment) => {
 const sanitizeOrder = (order = {}) => {
   const { userId, ...visibleOrder } = order
   return visibleOrder
+}
+
+const isUnpaidOrder = (order = {}) => ['unpaid', 'paying'].includes(order.paymentStatus)
+
+const isExpiredOrder = (order = {}, now = Date.now()) => {
+  const deadline = Number(order.paymentDeadlineAt) || (Number(order.createdAt) + PAYMENT_TIMEOUT_MS)
+  return isUnpaidOrder(order) && order.status !== 'cancelled' && Number.isFinite(deadline) && deadline <= now
+}
+
+const restoreOrderStock = async (transaction, order) => {
+  const groupedItems = (Array.isArray(order.items) ? order.items : []).reduce((groups, item) => {
+    if (!item || !item.productId || !item.skuId) return groups
+    if (!groups[item.productId]) groups[item.productId] = {}
+    groups[item.productId][item.skuId] = (groups[item.productId][item.skuId] || 0) + Math.max(0, Number(item.quantity) || 0)
+    return groups
+  }, {})
+
+  for (const [productId, skuQuantities] of Object.entries(groupedItems)) {
+    const productResult = await transaction.collection('goods').doc(productId).get()
+    const product = productResult.data
+    if (!product) throw new BusinessError('STOCK_RESTORE_FAILED', '商品库存恢复失败，请联系门店')
+    if (product.inventoryType !== 'finite') continue
+
+    const skuList = Array.isArray(product.SKUlist) ? product.SKUlist : []
+    const stockUpdates = {}
+    for (const [skuId, quantity] of Object.entries(skuQuantities)) {
+      const skuIndex = skuList.findIndex((sku) => sku.id === skuId)
+      if (skuIndex < 0) throw new BusinessError('STOCK_RESTORE_FAILED', '商品规格库存恢复失败，请联系门店')
+      stockUpdates[`SKUlist.${skuIndex}.stock`] = command.inc(quantity)
+    }
+    if (Object.keys(stockUpdates).length) {
+      await transaction.collection('goods').doc(productId).update({ data: stockUpdates })
+    }
+  }
+}
+
+const cancelOrderById = async (orderId, openid = '', reason = 'payment_timeout', markDeleted = false) => {
+  return db.runTransaction(async (transaction) => {
+    const orderRef = transaction.collection('orders').doc(orderId)
+    const result = await orderRef.get()
+    const order = result.data
+    if (!order) throw new BusinessError('ORDER_NOT_FOUND', '订单不存在')
+    if (openid && order.userId !== openid) throw new BusinessError('ORDER_NOT_FOUND', '订单不存在或无权操作')
+    if (order.userDeletedAt && !markDeleted) return order
+
+    const requiresRetention = ['paid', 'refunding'].includes(order.paymentStatus)
+    const canCancel = isUnpaidOrder(order) && order.status !== 'cancelled' && order.status !== 'completed'
+    if (reason === 'user_cancelled' && !canCancel) {
+      throw new BusinessError('ORDER_CANCEL_FORBIDDEN', '只有未支付订单可以取消')
+    }
+    if (markDeleted && requiresRetention && !['cancelled', 'completed'].includes(order.status)) {
+      throw new BusinessError('ORDER_DELETE_FORBIDDEN', '已支付订单需保留至商家处理完成')
+    }
+
+    const now = Date.now()
+    const update = { updatedAt: now }
+    if (canCancel) {
+      await restoreOrderStock(transaction, order)
+      if (order.currentPaymentId) {
+        const paymentRef = transaction.collection('payments').doc(order.currentPaymentId)
+        const paymentResult = await paymentRef.get()
+        if (paymentResult.data && paymentResult.data.status === 'pending') {
+          await paymentRef.update({ data: { status: 'closed', updatedAt: now } })
+        }
+      }
+      update.status = 'cancelled'
+      update.paymentStatus = isUnpaidOrder(order) ? 'closed' : order.paymentStatus
+      update.currentPaymentId = null
+      update.paymentDeadlineAt = null
+      update.cancelledAt = now
+      update.cancellationReason = reason
+      update.statusHistory = command.push({ status: 'cancelled', createdAt: now, reason })
+    }
+    if (markDeleted) update.userDeletedAt = now
+    await orderRef.update({ data: update })
+    return { ...order, ...update }
+  })
+}
+
+const migrateLegacyPendingPayment = async (order) => {
+  const legacyUnpaid = order && !['paid', 'refunding', 'refunded'].includes(order.paymentStatus) && !order.paidAt
+  if (!order || order.status !== 'pending_confirmation' || !legacyUnpaid) return order
+  const now = Date.now()
+  const deadline = Number(order.paymentDeadlineAt) || (Number(order.createdAt) + PAYMENT_TIMEOUT_MS)
+  const statusHistory = Array.isArray(order.statusHistory) ? order.statusHistory : []
+  await db.collection('orders').doc(order._id).update({
+    data: {
+      status: 'pending_payment',
+      paymentStatus: order.paymentStatus || 'unpaid',
+      paymentDeadlineAt: deadline,
+      statusHistory: command.push({ status: 'pending_payment', createdAt: now, reason: 'legacy_migration' }),
+      updatedAt: now
+    }
+  })
+  return { ...order, status: 'pending_payment', paymentStatus: order.paymentStatus || 'unpaid', paymentDeadlineAt: deadline, statusHistory }
+}
+
+const cancelExpiredOrdersForUser = async (openid) => {
+  const now = Date.now()
+  const result = await db.collection('orders')
+    .where({ userId: openid })
+    .limit(EXPIRY_BATCH_LIMIT)
+    .get()
+  for (const rawOrder of result.data || []) {
+    const order = await migrateLegacyPendingPayment(rawOrder)
+    if (!isExpiredOrder(order, now)) continue
+    try {
+      await cancelOrderById(order._id, openid, 'payment_timeout')
+    } catch (err) {
+      console.error('自动取消订单失败:', order._id, err)
+    }
+  }
+}
+
+const cancelExpiredOrders = async () => {
+  const now = Date.now()
+  const result = await db.collection('orders')
+    .limit(EXPIRY_BATCH_LIMIT)
+    .get()
+  let cancelledCount = 0
+  for (const rawOrder of result.data || []) {
+    const order = await migrateLegacyPendingPayment(rawOrder)
+    if (!isExpiredOrder(order, now)) continue
+    try {
+      await cancelOrderById(order._id, '', 'payment_timeout')
+      cancelledCount += 1
+    } catch (err) {
+      console.error('定时取消订单失败:', order._id, err)
+    }
+  }
+  return { cancelledCount }
 }
 
 const getUserProfile = async (openid) => {
@@ -346,6 +479,7 @@ const createOrders = async (event, openid, splitOrders) => {
         paidAmountCents: 0,
         currentPaymentId: null,
         paymentExpiresAt: null,
+        paymentDeadlineAt: now + PAYMENT_TIMEOUT_MS,
         paidAt: null,
         quoteStatus: amountType === 'estimated' ? 'pending' : 'not_required',
         finalQuoteAmountCents: null,
@@ -360,8 +494,8 @@ const createOrders = async (event, openid, splitOrders) => {
         appointment: group.fulfillmentType === 'delivery' ? appointment : null,
         note: payload.note,
         paymentStatus: 'unpaid',
-        status: 'pending_confirmation',
-        statusHistory: [{ status: 'pending_confirmation', createdAt: now }],
+        status: 'pending_payment',
+        statusHistory: [{ status: 'pending_payment', createdAt: now }],
         createdAt: now,
         updatedAt: now
       }
@@ -454,26 +588,89 @@ const updateProfile = async (event, openid) => {
 
 const listOrders = async (openid) => {
   await requireLoggedInProfile(openid)
+  await cancelExpiredOrdersForUser(openid)
   const result = await db.collection('orders')
     .where({ userId: openid })
     .orderBy('createdAt', 'desc')
     .limit(50)
     .get()
-  return success(result.data.map(sanitizeOrder))
+  return success(result.data.filter((order) => !order.userDeletedAt).map(sanitizeOrder))
 }
 
 const getOrder = async (event, openid) => {
   await requireLoggedInProfile(openid)
   const orderId = normalizeText(event.orderId, 64)
   if (!orderId) throw new BusinessError('INVALID_ORDER', '订单参数无效')
-  const result = await db.collection('orders').doc(orderId).get()
+  let result = await db.collection('orders').doc(orderId).get()
   if (!result.data || result.data.userId !== openid) {
     throw new BusinessError('ORDER_NOT_FOUND', '订单不存在或无权查看')
   }
+  result.data = await migrateLegacyPendingPayment(result.data)
+  if (isExpiredOrder(result.data)) {
+    await cancelOrderById(orderId, openid, 'payment_timeout')
+    result = await db.collection('orders').doc(orderId).get()
+  }
+  if (result.data.userDeletedAt) throw new BusinessError('ORDER_NOT_FOUND', '订单不存在或已删除')
   return success(sanitizeOrder(result.data))
 }
 
+const deleteOrder = async (event, openid) => {
+  await requireLoggedInProfile(openid)
+  const orderId = normalizeText(event.orderId, 64)
+  if (!orderId) throw new BusinessError('INVALID_ORDER', '订单参数无效')
+  const existing = await db.collection('orders').doc(orderId).get()
+  if (!existing.data || existing.data.userId !== openid) {
+    throw new BusinessError('ORDER_NOT_FOUND', '订单不存在或无权操作')
+  }
+  if (!['cancelled', 'completed'].includes(existing.data.status)) {
+    throw new BusinessError('ORDER_DELETE_FORBIDDEN', '只有已完成或已取消的订单可以删除')
+  }
+  const order = await cancelOrderById(orderId, openid, 'user_deleted', true)
+  return success({ orderId, deletedAt: order.userDeletedAt || Date.now() })
+}
+
+const cancelUserOrder = async (event, openid) => {
+  await requireLoggedInProfile(openid)
+  const orderId = normalizeText(event.orderId, 64)
+  if (!orderId) throw new BusinessError('INVALID_ORDER', '订单参数无效')
+  const order = await cancelOrderById(orderId, openid, 'user_cancelled')
+  return success(sanitizeOrder(order))
+}
+
+const requestRefund = async (event, openid) => {
+  await requireLoggedInProfile(openid)
+  const orderId = normalizeText(event.orderId, 64)
+  if (!orderId) throw new BusinessError('INVALID_ORDER', '订单参数无效')
+  const now = Date.now()
+  return db.runTransaction(async (transaction) => {
+    const orderRef = transaction.collection('orders').doc(orderId)
+    const result = await orderRef.get()
+    const order = result.data
+    if (!order || order.userId !== openid) throw new BusinessError('ORDER_NOT_FOUND', '订单不存在或无权操作')
+    if (order.paymentStatus !== 'paid') throw new BusinessError('REFUND_NOT_ALLOWED', '只有已支付订单可以申请退款')
+    if (order.refundRequestStatus === 'requested' || order.paymentStatus === 'refunding') {
+      throw new BusinessError('REFUND_ALREADY_REQUESTED', '退款申请已提交，请等待商家处理')
+    }
+    const update = {
+      refundRequestStatus: 'requested',
+      refundRequestedAt: now,
+      updatedAt: now,
+      statusHistory: command.push({ status: 'refund_requested', createdAt: now })
+    }
+    await orderRef.update({ data: update })
+    return success({ orderId, refundRequestStatus: 'requested', refundRequestedAt: now })
+  })
+}
+
 exports.main = async (event = {}) => {
+  if (event.Type === 'Timer' || event.type === 'timer') {
+    try {
+      return success(await cancelExpiredOrders())
+    } catch (err) {
+      console.error('定时取消订单失败:', err)
+      return failure('INTERNAL_ERROR', '订单自动取消失败')
+    }
+  }
   const { OPENID } = cloud.getWXContext()
   if (!OPENID) return failure('UNAUTHORIZED', '无法识别当前用户，请重新打开小程序')
 
@@ -493,6 +690,12 @@ exports.main = async (event = {}) => {
         return await listOrders(OPENID)
       case 'getOrder':
         return await getOrder(event, OPENID)
+      case 'deleteOrder':
+        return await deleteOrder(event, OPENID)
+      case 'cancelOrder':
+        return await cancelUserOrder(event, OPENID)
+      case 'requestRefund':
+        return await requestRefund(event, OPENID)
       default:
         return failure('INVALID_ACTION', '不支持的订单操作')
     }

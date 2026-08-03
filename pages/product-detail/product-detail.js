@@ -1,4 +1,4 @@
-const { addCartItem, syncCartBadge } = require('../../utils/cart')
+const { addCartItem, saveBuyNowItem, syncCartBadge } = require('../../utils/cart')
 const { loadUserSession, requireLogin } = require('../../utils/auth')
 const {
   findSelectedSku,
@@ -92,24 +92,42 @@ Page({
     }
     this.setData({ quantity: this.data.quantity + 1 })
   },
-  addToCart() {
+  validateSelection() {
     const { product, selectedSku, quantity } = this.data
     if (!selectedSku) {
       wx.showToast({ title: '请选择完整规格', icon: 'none' })
       this.setData({ showSelectorHint: true })
-      return
+      return null
     }
     if (Number(selectedSku.stock) <= 0) {
       wx.showToast({ title: '当前规格库存不足', icon: 'none' })
-      return
+      return null
     }
+    return { product, selectedSku, quantity }
+  },
+  addToCart() {
+    const selection = this.validateSelection()
+    if (!selection) return
     requireLogin().then((session) => {
       if (!session) return
-      addCartItem(product, selectedSku, quantity)
+      addCartItem(selection.product, selection.selectedSku, selection.quantity)
       wx.showToast({ title: '已加入购物车', icon: 'success' })
     }).catch((err) => {
       console.error('登录状态检查失败:', err)
       wx.showToast({ title: '登录状态检查失败，请稍后重试', icon: 'none' })
+    })
+  },
+  buyNow() {
+    const selection = this.validateSelection()
+    if (!selection) return
+    requireLogin().then((session) => {
+      if (!session) return
+      const item = saveBuyNowItem(selection.product, selection.selectedSku, selection.quantity)
+      if (!item) throw new Error('暂时无法创建结算信息')
+      wx.navigateTo({ url: '/pages/checkout/checkout?mode=buyNow' })
+    }).catch((err) => {
+      console.error('立即购买失败:', err)
+      wx.showToast({ title: err.message || '暂时无法购买，请稍后重试', icon: 'none' })
     })
   },
   goToCart() {

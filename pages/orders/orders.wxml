@@ -26,12 +26,18 @@
       </view>
       <order-items items="{{item.items}}"></order-items>
       <view wx:if="{{item.appointmentText}}" class="order-card__appointment">预约上门：{{item.appointmentText}}</view>
+      <view wx:if="{{item.paymentCountdownText}}" class="order-card__countdown">{{item.paymentCountdownText}}</view>
       <view class="order-card__footer">
         <text class="order-card__count">共 {{item.totalQuantity}} 件</text>
         <view class="order-card__amount">
           <text>{{item.onlinePaymentLabel}}</text>
           <text class="order-card__price">¥{{item.onlinePayableAmountText}}</text>
         </view>
+      </view>
+      <view wx:if="{{item.canCancel || item.canRefund || item.canDelete}}" class="order-card__actions">
+        <button wx:if="{{item.canCancel}}" class="order-card__cancel" data-id="{{item._id}}" catchtap="cancelOrder">取消订单</button>
+        <button wx:if="{{item.canRefund}}" class="order-card__refund" data-id="{{item._id}}" catchtap="requestRefund">申请退款</button>
+        <button wx:if="{{item.canDelete}}" class="order-card__delete" data-id="{{item._id}}" catchtap="deleteOrder">删除订单</button>
       </view>
     </view>
   </view>

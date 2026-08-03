@@ -1,4 +1,4 @@
-const { getCartItems, removeCartItems } = require('../../utils/cart')
+const { clearBuyNowItem, getBuyNowItem, getCartItems, removeCartItems } = require('../../utils/cart')
 const { loadUserSession, openLogin } = require('../../utils/auth')
 const { callOrderService, formatMoney, formatOrderItem, MERCHANT_PHONE } = require('../../utils/order')
 const { formatSpecText, toFiniteNumber } = require('../../utils/product')
@@ -108,7 +108,8 @@ Page({
     pageMessage: '',
     submitting: false
   },
-  onLoad() {
+  onLoad(options) {
+    this.checkoutMode = options && options.mode === 'buyNow' ? 'buyNow' : 'cart'
     this.setData({
       ...getAppointmentDefaults(),
       pageStatus: 'loading',
@@ -128,7 +129,10 @@ Page({
       })
   },
   initializeCheckout() {
-    const selectedItems = getCartItems().filter((item) => item.selected !== false)
+    const buyNowItem = this.checkoutMode === 'buyNow' ? getBuyNowItem() : null
+    const selectedItems = buyNowItem
+      ? [buyNowItem]
+      : getCartItems().filter((item) => item.selected !== false)
     if (!selectedItems.length) {
       this.setData({ pageStatus: 'empty', pageMessage: '没有可结算的商品' })
       return
@@ -327,7 +331,11 @@ Page({
         : null,
       note: this.data.note.trim()
     }).then((result) => {
-      removeCartItems(this.data.selectedKeys)
+      if (this.checkoutMode === 'buyNow') {
+        clearBuyNowItem()
+      } else {
+        removeCartItems(this.data.selectedKeys)
+      }
       if (this.data.hasDeliveryItems) {
         this.showAppointmentConfirmation(result)
         return

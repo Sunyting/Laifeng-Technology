@@ -52,7 +52,8 @@
         <image src="/images/icons/购物车.png" mode="aspectFit"></image>
         <text>购物车</text>
       </button>
-      <button class="add-button" disabled="{{!selectedSku || selectedSku.stock <= 0}}" bindtap="addToCart">加入购物车</button>
+      <button class="action-button action-button--cart" disabled="{{!selectedSku || selectedSku.stock <= 0}}" bindtap="addToCart">加入购物车</button>
+      <button class="action-button action-button--buy" disabled="{{!selectedSku || selectedSku.stock <= 0}}" bindtap="buyNow">立即购买</button>
     </view>
   </block>
 

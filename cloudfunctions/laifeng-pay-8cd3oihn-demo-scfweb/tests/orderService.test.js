@@ -69,7 +69,8 @@ const createOrder = (overrides = {}) => ({
     paymentStatus: 'unpaid',
     currentPaymentId: null,
     paymentExpiresAt: null,
-    status: 'pending_confirmation',
+    status: 'pending_payment',
+    statusHistory: [{ status: 'pending_payment', createdAt: NOW }],
     ...overrides
 });
 
@@ -156,6 +157,11 @@ test('成功回调更新订单和支付单，重复回调保持幂等', async ()
     assert.equal(storedPayment.transactionId, 'wx-transaction-1');
     assert.equal(storedPayment.paidAt, NOW);
     assert.equal(storedOrder.paymentStatus, 'paid');
+    assert.equal(storedOrder.status, 'pending_confirmation');
+    assert.deepEqual(storedOrder.statusHistory.at(-1), {
+        status: 'pending_confirmation',
+        createdAt: NOW
+    });
     assert.equal(storedOrder.paidAmountCents, 3000);
     assert.equal(storedOrder.paidAt, NOW);
 });

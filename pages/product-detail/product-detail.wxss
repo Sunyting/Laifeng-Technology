@@ -129,7 +129,7 @@
 
 .stepper__button::after,
 .cart-shortcut::after,
-.add-button::after {
+.action-button::after {
   border: 0;
 }
 
@@ -194,19 +194,29 @@
   margin-bottom: 6rpx;
 }
 
-.add-button {
+.action-button {
   flex: 1;
   min-height: 88rpx;
   margin: 0;
   border-radius: 8rpx;
-  background: #e53e3e;
-  color: #ffffff;
   font-size: 30rpx;
   font-weight: 600;
   line-height: 88rpx;
 }
 
-.add-button[disabled] {
+.action-button--cart {
+  border: 2rpx solid #e53e3e;
+  background: #ffffff;
+  color: #c53030;
+}
+
+.action-button--buy {
+  background: #e53e3e;
+  color: #ffffff;
+}
+
+.action-button[disabled] {
+  border-color: #d0d5dd;
   background: #d0d5dd;
   color: #ffffff;
 }

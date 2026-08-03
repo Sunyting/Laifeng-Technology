@@ -2,7 +2,7 @@
 
 本文档是项目数据库结构的基准文档。修改集合、字段、数据类型、索引、权限或关联关系时，必须同步更新本文档和相关代码。
 
-最后核对时间：2026-07-30
+最后核对时间：2026-07-31
 云开发环境：`cloud1-6gwdbwvi5f830ad2`（上海 `ap-shanghai`）
 
 ## 一、已部署结构概览
@@ -11,9 +11,10 @@
 | --- | --- | ---: | --- | --- |
 | `shop_firstType` | 一级商品分类 | 9 | `READONLY` | 已部署 |
 | `goods` | 商品、规格和 SKU | 37 | `ADMINWRITE` | 已部署 |
-| `top-banner` | 首页轮播图 | 5 | `READONLY` | 已部署 |
-| `users` | 用户联系资料 | 0 | `ADMINONLY` | 已部署 |
-| `orders` | 订单及订单明细 | 0 | `ADMINONLY` | 已部署 |
+| `top-banner` | 首页轮播图 | 6 | `READONLY` | 已部署 |
+| `users` | 用户联系资料 | 1 | `ADMINONLY` | 已部署 |
+| `orders` | 订单及订单明细 | 5 | `ADMINONLY` | 已部署 |
+| `payments` | 微信支付单及支付结果 | 0 | `ADMINONLY` | 已部署 |
 
 当前集合关系：
 
@@ -23,8 +24,12 @@ shop_firstType._id
         └──< goods.categoryId
 
 users._id（用户 OpenID）
+        ├──< orders.userId
+        └──< payments.userId
+
+orders._id
         │
-        └──< orders.userId
+        └──< payments.orderId
 
 top-banner（当前独立，无外键关系）
 ```
@@ -228,7 +233,10 @@ specs
 | `paidAmountCents` | `number` | 是 | 已确认到账金额，单位为分，新订单为 `0` |
 | `currentPaymentId` | `string \| null` | 是 | 当前有效支付单号，引用 `payments._id`；尚未创建或已释放时为 `null` |
 | `paymentExpiresAt` | `number \| null` | 是 | 当前支付单过期时间；尚未创建支付单时为 `null` |
+| `paymentDeadlineAt` | `number \| null` | 是 | 订单支付截止时间，创建后 30 分钟；支付超时或取消后为 `null` |
 | `paidAt` | `number \| null` | 是 | 在线支付到账时间；未支付时为 `null` |
+| `refundRequestStatus` | `"requested" \| null` | 否 | 顾客退款申请状态；未申请时为空 |
+| `refundRequestedAt` | `number \| null` | 否 | 顾客提交退款申请的时间 |
 | `quoteStatus` | `"not_required" \| "pending" \| "confirmed"` | 是 | 后续维修报价状态 |
 | `finalQuoteAmountCents` | `number \| null` | 是 | 检测后的最终报价，单位为分 |
 | `offlineAmountCents` | `number \| null` | 是 | 后续到店实收维修费，单位为分 |
@@ -239,8 +247,11 @@ specs
 | `appointment` | `Appointment \| null` | 是 | 上门预约时间；仅 `delivery` 订单保存预约对象，到店订单固定为 `null` |
 | `note` | `string` | 否 | 用户订单备注，最多 200 个字符 |
 | `paymentStatus` | `"unpaid" \| "paying" \| "paid" \| "closed" \| "refunding" \| "refunded"` | 是 | 在线付款状态，新订单初始为 `unpaid`；与业务订单状态相互独立 |
-| `status` | `string` | 是 | 当前订单状态，初始为 `pending_confirmation` |
+| `status` | `string` | 是 | 当前订单状态，初始为 `pending_payment`；支付成功后变为 `pending_confirmation` |
 | `statusHistory` | `OrderStatus[]` | 是 | 订单状态变更记录 |
+| `cancelledAt` | `number \| null` | 否 | 订单取消时间 |
+| `cancellationReason` | `"payment_timeout" \| "user_cancelled"` | 否 | 超时自动取消或顾客主动取消 |
+| `userDeletedAt` | `number \| null` | 否 | 顾客软删除时间；有值时不再向该顾客展示 |
 | `createdAt` | `number` | 是 | 下单时间，Unix 毫秒时间戳 |
 | `updatedAt` | `number` | 是 | 最后更新时间，Unix 毫秒时间戳 |
 
@@ -278,7 +289,9 @@ specs
 
 上门预约仅支持未来 90 天。订单提交后，顾客需拨打商家电话 `13872533145` 确认具体上门时间。
 
-当前订单状态：`pending_confirmation`（待商家确认）、`confirmed`（已确认）、`completed`（已完成）、`cancelled`（已取消）。当前版本只由小程序创建待确认订单，后续状态由管理端维护。
+当前订单状态：`pending_payment`（待付款）、`pending_confirmation`（待商家确认）、`confirmed`（已确认）、`completed`（已完成）、`cancelled`（已取消）。新订单先进入 `pending_payment`，只有微信支付回调或主动查单确认到账后才进入 `pending_confirmation`。商家后续维护确认和完成状态。
+
+订单创建后 30 分钟内未支付会自动取消。`orderService` 配置 `cancelExpiredOrders` 定时触发器，每 5 分钟扫描一次；订单列表和详情查询也会即时补偿检查。取消操作在事务中恢复有限库存、关闭待处理支付单并写入状态历史。未支付订单可由顾客主动取消；已支付订单可提交退款申请；仅已完成和已取消订单可软删除。
 
 当前付款状态：`unpaid`（待付款）、`paying`（支付确认中）、`paid`（已付款）、`closed`（已关闭）、`refunding`（退款中）、`refunded`（已退款）。历史订单缺少新增金额字段时，小程序暂按 `totalAmount` 兼容展示在线应付金额。
 
@@ -292,9 +305,9 @@ specs
 | `_openid_1` | `_openid` | 升序 | 否 |
 | `userId_1_createdAt_-1` | `userId` 升序、`createdAt` 降序 | 复合 | 否 |
 
-## 八、`payments` 支付集合（待部署）
+## 八、`payments` 支付集合
 
-当前云环境已通过集成中心创建微信支付函数 `laifeng-pay-8cd3oihn-demo-scfweb`，本地已接入仅按业务订单下单和查单的安全路由；函数代码和 `payments` 集合尚未部署。本节是支付功能部署时必须采用的结构，不属于“一、已部署结构概览”。
+`payments` 已于 2026-07-31 部署，权限为 `ADMINONLY`，仅允许支付 HTTP 云函数读写。云环境已通过集成中心创建并部署微信支付函数 `laifeng-pay-8cd3oihn-demo-scfweb`，已接入仅按业务订单下单和查单的安全路由。`orderService` 同日已部署包含 `onlinePayableAmountCents`、`currentPaymentId` 等支付字段的订单版本。
 
 集成中心生成函数后，必须把实际函数名配置到 `app.js` 的 `globalData.payment.functionName`，并实现 `/wx-pay/order` 与 `/wx-pay/query` 两个仅接收 `orderId` 的业务路由；不得直接采用允许客户端传金额的通用下单入口。
 
@@ -317,6 +330,15 @@ specs
 
 支付函数必须只接收 `orderId`，重新读取订单归属、状态及 `onlinePayableAmountCents` 后创建微信支付单，不能接收客户端传入的金额。小程序通过 `wx.cloud.callHTTPFunction` 调用，平台注入的 `x-wx-openid` 是支付函数唯一接受的用户身份来源。支付成功以服务端通知或主动查单结果为准，`wx.requestPayment` 的成功回调只用于界面反馈。支付通知必须校验商户订单号、金额、币种和用户归属，并以事务或条件更新实现幂等。
 
+### 当前索引
+
+| 索引名 | 字段 | 方向 | 唯一 |
+| --- | --- | --- | --- |
+| `_id_` | `_id` | 升序 | 否 |
+| `_openid_1` | `_openid` | 升序 | 否 |
+| `orderId_1_createdAt_-1` | `orderId` 升序、`createdAt` 降序 | 复合 | 否 |
+| `userId_1_createdAt_-1` | `userId` 升序、`createdAt` 降序 | 复合 | 否 |
+
 ## 九、权限与服务端写入
 
 | 集合 | 已部署权限 | 客户端读取 | 客户端写入 |
@@ -326,6 +348,7 @@ specs
 | `top-banner` | `READONLY` | 允许 | 禁止 |
 | `users` | `ADMINONLY` | 禁止 | 禁止 |
 | `orders` | `ADMINONLY` | 禁止 | 禁止 |
+| `payments` | `ADMINONLY` | 禁止 | 禁止 |
 
 `orderService` 云函数使用 Node.js 20 和 `wx-server-sdk@4.0.2`，只允许已登录的非匿名用户调用。它负责保存微信展示资料和默认联系资料、创建订单、扣减库存以及按当前用户查询订单，客户端不直接读写 `users` 和 `orders`。
 

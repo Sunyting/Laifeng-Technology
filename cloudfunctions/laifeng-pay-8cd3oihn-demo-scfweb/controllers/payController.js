@@ -5,7 +5,9 @@ const success = (res, data) => res.status(200).json({ code: 0, msg: 'success', d
 
 const fail = (res, error, fallbackMessage) => {
     const statusCode = error.statusCode || 400;
-    res.status(statusCode).json({
+    // callHTTPFunction 将非 2xx 响应转成无业务详情的 system error；业务失败统一
+    // 用 200 返回业务码，客户端才能展示微信侧的具体错误并决定是否重试。
+    res.status(statusCode === 401 || statusCode === 403 ? statusCode : 200).json({
         code: error.code || 'PAYMENT_ERROR',
         msg: error.message || fallbackMessage,
         data: null

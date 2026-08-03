@@ -2,7 +2,8 @@
   <block wx:if="{{pageStatus === 'success'}}">
     <view class="status-section">
       <text class="status-section__status">{{order.statusLabel}}</text>
-      <text class="status-section__hint">{{order.fulfillmentType === 'delivery' ? '预约已提交，请致电商家确认上门时间' : '订单已提交，门店确认后会与您联系'}}</text>
+      <text class="status-section__hint">{{order.statusHint}}</text>
+      <text wx:if="{{order.paymentCountdownText}}" class="status-section__countdown">{{order.paymentCountdownText}}</text>
     </view>
 
     <view class="detail-section info-list">
@@ -66,7 +67,12 @@
     </view>
 
     <view class="order-note">维修、安装及起步价商品以门店确认的最终方案和价格为准。</view>
-    <button wx:if="{{order.canPay}}" class="payment-button" loading="{{paying}}" disabled="{{paying}}" bindtap="payOrder">{{order.paymentActionText}}</button>
+    <view class="order-actions">
+      <button wx:if="{{order.canPay}}" class="payment-button" loading="{{paying}}" disabled="{{paying}}" bindtap="payOrder">{{order.paymentActionText}}</button>
+      <button wx:if="{{order.canCancel}}" class="cancel-button" bindtap="cancelOrder">取消订单</button>
+      <button wx:if="{{order.canRefund}}" class="refund-button" bindtap="requestRefund">申请退款</button>
+      <button wx:if="{{order.canDelete}}" class="delete-button" bindtap="deleteOrder">删除订单</button>
+    </view>
     <button class="orders-button" bindtap="goToOrders">查看全部订单</button>
   </block>
 

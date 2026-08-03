@@ -15,6 +15,14 @@
   display: block;
 }
 
+.status-section__countdown {
+  display: block;
+  margin-top: 12rpx;
+  color: #fff8f3;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
 .status-section__status {
   font-size: 34rpx;
   font-weight: 700;
@@ -189,7 +197,10 @@
 }
 
 .payment-button,
-.orders-button {
+.orders-button,
+.cancel-button,
+.refund-button,
+.delete-button {
   min-height: 76rpx;
   margin: 8rpx 30rpx 0;
   border: 1rpx solid #1677a7;
@@ -206,7 +217,38 @@
   color: #ffffff;
 }
 
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin: 8rpx 30rpx 0;
+}
+
+.order-actions .payment-button,
+.order-actions .cancel-button,
+.order-actions .refund-button,
+.order-actions .delete-button {
+  flex: 1 1 45%;
+  margin: 0;
+}
+
+.cancel-button,
+.delete-button {
+  border-color: #d0d5dd;
+  background: #ffffff;
+  color: #475467;
+}
+
+.refund-button {
+  border-color: #c53030;
+  background: #ffffff;
+  color: #c53030;
+}
+
 .payment-button::after,
-.orders-button::after {
+.orders-button::after,
+.cancel-button::after,
+.refund-button::after,
+.delete-button::after {
   border: 0;
 }

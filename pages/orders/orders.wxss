@@ -146,6 +146,15 @@
   font-weight: 600;
 }
 
+.order-card__countdown {
+  margin: 0 -22rpx;
+  padding: 14rpx 22rpx;
+  background: #fff8f3;
+  color: #c4320a;
+  font-size: 22rpx;
+  text-align: right;
+}
+
 .order-card__footer {
   border-top: 1rpx solid #eaecf0;
   color: #667085;
@@ -162,4 +171,53 @@
   color: #e53e3e;
   font-size: 29rpx;
   font-weight: 700;
+}
+
+.order-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 0 20rpx;
+}
+
+.order-card__delete {
+  min-width: 144rpx;
+  height: 60rpx;
+  min-height: 60rpx;
+  margin: 0;
+  padding: 0 22rpx;
+  border: 1rpx solid #d0d5dd;
+  border-radius: 6rpx;
+  background: #ffffff;
+  color: #475467;
+  font-size: 23rpx;
+  line-height: 58rpx;
+}
+
+.order-card__cancel,
+.order-card__refund {
+  min-width: 144rpx;
+  height: 60rpx;
+  min-height: 60rpx;
+  margin: 0 0 0 14rpx;
+  padding: 0 22rpx;
+  border: 1rpx solid #d0d5dd;
+  border-radius: 6rpx;
+  background: #ffffff;
+  color: #475467;
+  font-size: 23rpx;
+  line-height: 58rpx;
+}
+
+.order-card__refund {
+  border-color: #1677a7;
+  color: #1677a7;
+}
+
+.order-card__cancel::after,
+.order-card__refund::after {
+  border: 0;
+}
+
+.order-card__delete::after {
+  border: 0;
 }
